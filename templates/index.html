@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Kinotop | Shorts</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="apple-touch-icon" href="/static/icon-192.png">
+    <meta name="theme-color" content="#667eea">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <style>
         * {
             margin: 0;
@@ -20,7 +25,7 @@
             position: fixed;
         }
 
-        /* PRELOADER ANIMATSIYA */
+        /* PRELOADER ANIMATSIYA - 3 SONIYA */
         .preloader {
             position: fixed;
             top: 0;
@@ -65,6 +70,27 @@
             margin-bottom: 30px;
         }
 
+        .preloader-progress {
+            width: 200px;
+            height: 3px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 3px;
+            margin: 20px auto;
+            overflow: hidden;
+        }
+
+        .preloader-progress-bar {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.1s linear;
+        }
+
+        .preloader-status {
+            color: rgba(255,255,255,0.5);
+            font-size: 0.8rem;
+        }
+
         .start-btn {
             background: linear-gradient(135deg, #667eea, #764ba2);
             border: none;
@@ -94,24 +120,14 @@
         }
 
         @keyframes bounce {
-            0%, 100% {
-                transform: translateY(0);
-            }
-            50% {
-                transform: translateY(-15px);
-            }
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-15px); }
         }
 
         @keyframes pulse {
-            0% {
-                box-shadow: 0 0 0 0 rgba(102,126,234,0.7);
-            }
-            70% {
-                box-shadow: 0 0 0 15px rgba(102,126,234,0);
-            }
-            100% {
-                box-shadow: 0 0 0 0 rgba(102,126,234,0);
-            }
+            0% { box-shadow: 0 0 0 0 rgba(102,126,234,0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(102,126,234,0); }
+            100% { box-shadow: 0 0 0 0 rgba(102,126,234,0); }
         }
 
         /* SHORTS CONTAINER */
@@ -127,9 +143,7 @@
             visibility: visible;
         }
 
-        .shorts-container::-webkit-scrollbar {
-            display: none;
-        }
+        .shorts-container::-webkit-scrollbar { display: none; }
 
         .short-video {
             position: relative;
@@ -200,11 +214,8 @@
             transition: transform 0.2s;
         }
 
-        .overlay-btn:active {
-            transform: scale(0.9);
-        }
+        .overlay-btn:active { transform: scale(0.9); }
 
-        /* Loading indicator for shorts */
         .short-loading {
             position: absolute;
             top: 50%;
@@ -224,7 +235,7 @@
             to { transform: translate(-50%, -50%) rotate(360deg); }
         }
 
-        /* FLOATING CODE INPUT */
+        /* CODE BAR */
         .code-bar {
             position: fixed;
             bottom: 0;
@@ -237,9 +248,7 @@
             transition: transform 0.3s ease;
         }
 
-        .code-bar.hidden {
-            transform: translateY(100%);
-        }
+        .code-bar.hidden { transform: translateY(100%); }
 
         .code-button {
             width: 100%;
@@ -286,7 +295,7 @@
             font-size: 1.2rem;
         }
 
-        /* MODAL OVERLAY */
+        /* MODAL */
         .modal-overlay {
             position: fixed;
             top: 0;
@@ -301,9 +310,7 @@
             backdrop-filter: blur(10px);
         }
 
-        .modal-overlay.show {
-            display: flex;
-        }
+        .modal-overlay.show { display: flex; }
 
         .modal-container {
             width: 90%;
@@ -326,9 +333,7 @@
             margin-bottom: 5px;
         }
 
-        .modal-body {
-            padding: 25px 20px;
-        }
+        .modal-body { padding: 25px 20px; }
 
         .code-display {
             background: #0f0f1a;
@@ -340,8 +345,8 @@
         }
 
         .code-display span {
-            font-size: 1.8rem;
-            letter-spacing: 4px;
+            font-size: 2rem;
+            letter-spacing: 8px;
             color: white;
             font-weight: 600;
             font-family: monospace;
@@ -388,15 +393,8 @@
             cursor: pointer;
         }
 
-        .action-btn.clear {
-            background: #dc3545;
-            color: white;
-        }
-
-        .action-btn.backspace {
-            background: #ffc107;
-            color: #333;
-        }
+        .action-btn.clear { background: #dc3545; color: white; }
+        .action-btn.backspace { background: #ffc107; color: #333; }
 
         .watch-submit {
             width: 100%;
@@ -408,6 +406,66 @@
             font-size: 1rem;
             font-weight: 600;
             cursor: pointer;
+        }
+
+        /* FILM LOADING ANIMATION */
+        .film-loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 300;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 20px;
+            visibility: hidden;
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+
+        .film-loading-overlay.show {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .film-loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(102,126,234,0.3);
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        .film-loading-text {
+            color: white;
+            font-size: 1.2rem;
+            font-weight: 500;
+        }
+
+        .film-loading-dots {
+            display: inline-flex;
+            gap: 3px;
+        }
+
+        .film-loading-dots span {
+            width: 6px;
+            height: 6px;
+            background: white;
+            border-radius: 50%;
+            animation: dotPulse 1.4s infinite;
+        }
+
+        .film-loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .film-loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes dotPulse {
+            0%, 60%, 100% { opacity: 0.3; transform: scale(0.8); }
+            30% { opacity: 1; transform: scale(1.2); }
         }
 
         .logo {
@@ -464,13 +522,26 @@
 </head>
 <body>
 
-<!-- PRELOADER ANIMATSIYA -->
 <div class="preloader" id="preloader">
     <div class="preloader-content">
         <div class="preloader-logo">🎬</div>
         <div class="preloader-title">KINOTOP</div>
         <div class="preloader-subtitle">Eng yangi va qiziqarli kinolar</div>
+        <div class="preloader-progress">
+            <div class="preloader-progress-bar" id="progressBar"></div>
+        </div>
+        <div class="preloader-status" id="statusText">Shorts yuklanmoqda...</div>
         <button class="start-btn" id="startBtn">🎥 Videoni ko'rishni boshlash</button>
+    </div>
+</div>
+
+<div class="film-loading-overlay" id="filmLoadingOverlay">
+    <div class="film-loading-spinner"></div>
+    <div class="film-loading-text">
+        Kino qidirilmoqda
+        <div class="film-loading-dots">
+            <span>.</span><span>.</span><span>.</span>
+        </div>
     </div>
 </div>
 
@@ -493,19 +564,13 @@
                 <div class="short-desc">{{ short.tafsilot or 'Qiziqarli video' }}</div>
             </div>
             <div class="overlay-buttons">
-                <div class="overlay-btn sound-btn" data-id="{{ short.id }}">
-                    🔇
-                </div>
-                <div class="overlay-btn like-btn">
-                    ❤️
-                </div>
+                <div class="overlay-btn sound-btn" data-id="{{ short.id }}">🔇</div>
+                <div class="overlay-btn like-btn">❤️</div>
             </div>
         </div>
         {% endfor %}
     {% else %}
-        <div class="no-shorts">
-            <p>📱 Hozircha shorts videolar yo'q</p>
-        </div>
+        <div class="no-shorts"><p>📱 Hozircha shorts videolar yo'q</p></div>
     {% endif %}
 </div>
 
@@ -514,7 +579,7 @@
         <div class="code-button-left">
             <div class="code-icon">🎬</div>
             <div class="code-text">
-                <h4>Film kodini kiriting</h4>
+                <h4>4 xonali film kodini kiriting</h4>
                 <p>To'liq sifatda tomosha qiling</p>
             </div>
         </div>
@@ -526,12 +591,12 @@
     <div class="modal-close" id="closeModalBtn">✕</div>
     <div class="modal-container">
         <div class="modal-header">
-            <h3>🎬 Film kodini kiriting</h3>
-            <p>Kodni raqamlar orqali yozing</p>
+            <h3>🎬 4 xonali film kodini kiriting</h3>
+            <p>Masalan: 1234</p>
         </div>
         <div class="modal-body">
             <div class="code-display">
-                <span id="codeDisplay">______</span>
+                <span id="codeDisplay">____</span>
             </div>
             <div class="numpad" id="numpad">
                 <div class="numpad-btn" data-value="1">1</div>
@@ -557,53 +622,74 @@
 </div>
 
 <script>
-    // ============ PRELOADER VA BARCHA SHORTSLARNI OLDINDAN YUKLASH ============
+    // ============ PRELOADER (3 SONIYA) + SHORTS YUKLASH ============
     const preloader = document.getElementById('preloader');
     const startBtn = document.getElementById('startBtn');
     const shortsContainer = document.getElementById('shortsContainer');
+    const progressBar = document.getElementById('progressBar');
+    const statusText = document.getElementById('statusText');
     let allVideos = [];
-    let videosLoaded = false;
-    let loadingComplete = false;
+    let videosLoaded = 0;
+    let totalVideos = 0;
 
-    // Barcha shortslarni oldindan yuklash (fonda)
-    function preloadAllShortsInBackground() {
+    function preloadAllShorts() {
         const videoElements = document.querySelectorAll('.short-video video');
         allVideos = Array.from(videoElements);
+        totalVideos = allVideos.length;
+        
+        if (totalVideos === 0) {
+            progressBar.style.width = '100%';
+            statusText.innerHTML = 'Tayyor!';
+            return;
+        }
         
         allVideos.forEach((video, index) => {
-            // Yuklanishni boshlash
             video.load();
             
-            // Yuklanish holatini tekshirish
             video.addEventListener('canplaythrough', () => {
-                console.log(`Video ${index + 1} tayyor`);
+                videosLoaded++;
+                const percent = (videosLoaded / totalVideos) * 100;
+                progressBar.style.width = percent + '%';
+                statusText.innerHTML = `Shorts yuklanmoqda... ${Math.round(percent)}%`;
+                
+                if (videosLoaded === totalVideos) {
+                    statusText.innerHTML = 'Barcha shortslar tayyor!';
+                }
             });
             
-            // Xatolik bo'lsa ham davom et
             video.addEventListener('error', () => {
-                console.log(`Video ${index + 1} yuklanmadi, lekin davom`);
+                videosLoaded++;
+                const percent = (videosLoaded / totalVideos) * 100;
+                progressBar.style.width = percent + '%';
             });
         });
-        
-        loadingComplete = true;
     }
 
-    // Birinchi videoni tayyorlash
+    startBtn.addEventListener('click', () => {
+        preloader.classList.add('hide');
+        shortsContainer.style.display = 'block';
+        
+        setTimeout(() => {
+            if (allVideos.length > 0) {
+                prepareFirstVideo();
+                setupVideoLoop();
+            }
+        }, 100);
+    });
+
+    // Shorts player
+    let currentIndex = 0;
+    let currentVideo = null;
+
     function prepareFirstVideo() {
         if (allVideos.length > 0) {
-            const firstVideo = allVideos[0];
-            firstVideo.muted = false;
-            firstVideo.play().catch(e => console.log('Auto play blocked'));
-            
-            // Sound button yangilash
+            currentVideo = allVideos[0];
+            currentVideo.muted = false;
+            currentVideo.play().catch(e => console.log());
             const firstSoundBtn = document.querySelector('.sound-btn');
             if (firstSoundBtn) firstSoundBtn.innerHTML = '🔊';
         }
     }
-
-    // Shorts player funksiyalari
-    let currentIndex = 0;
-    let currentVideo = null;
 
     function playCurrentVideoOnly() {
         allVideos.forEach((video) => {
@@ -618,9 +704,8 @@
             currentVideo = allVideos[currentIndex];
             const parent = currentVideo.closest('.short-video');
             const soundBtn = parent?.querySelector('.sound-btn');
-            
             currentVideo.muted = false;
-            currentVideo.play().catch(e => console.log('Play error'));
+            currentVideo.play().catch(e => console.log());
             if (soundBtn) soundBtn.innerHTML = '🔊';
         }
     }
@@ -631,7 +716,6 @@
         return Math.round(scrollTop / itemHeight);
     }
 
-    // Scroll event
     let scrollTimeout;
     shortsContainer.addEventListener('scroll', () => {
         if (scrollTimeout) clearTimeout(scrollTimeout);
@@ -644,39 +728,17 @@
         }, 50);
     });
 
-    // Touch event
-    let touchStartY = 0;
-    shortsContainer.addEventListener('touchstart', (e) => {
-        touchStartY = e.touches[0].clientY;
-    });
-    
-    shortsContainer.addEventListener('touchend', (e) => {
-        const touchEndY = e.changedTouches[0].clientY;
-        const diff = touchStartY - touchEndY;
-        if (Math.abs(diff) > 30) {
-            setTimeout(() => {
-                const newIndex = getCurrentIndex();
-                if (newIndex !== currentIndex) {
-                    currentIndex = newIndex;
-                    playCurrentVideoOnly();
-                }
-            }, 100);
-        }
-    });
-
-    // Video tugaganda qayta ijro (avtomatik otmasin)
     function setupVideoLoop() {
         allVideos.forEach((video, idx) => {
             video.addEventListener('ended', () => {
                 if (idx === currentIndex) {
                     video.currentTime = 0;
-                    video.play().catch(e => console.log('Replay error'));
+                    video.play().catch(e => console.log());
                 }
             });
         });
     }
 
-    // Ovozni yoqish/o'chirish
     function toggleSound(btn, videoId) {
         const parent = btn.closest('.short-video');
         const video = parent.querySelector('video');
@@ -691,38 +753,16 @@
         }
     }
 
-    // Like animatsiyasi
     function likeVideo(btn) {
         btn.style.transform = 'scale(1.2)';
-        setTimeout(() => {
-            btn.style.transform = 'scale(1)';
-        }, 200);
+        setTimeout(() => { btn.style.transform = 'scale(1)'; }, 200);
         btn.innerHTML = '❤️';
-        setTimeout(() => {
-            btn.innerHTML = '❤️';
-        }, 1000);
+        setTimeout(() => { btn.innerHTML = '❤️'; }, 1000);
     }
 
-    // ============ START TUGMASI BOSILGANDA ============
-    startBtn.addEventListener('click', () => {
-        // Preloader ni yashirish
-        preloader.classList.add('hide');
-        
-        // Shorts container ni ko'rsatish
-        shortsContainer.style.display = 'block';
-        
-        // Birinchi videoni o'ynatish
-        setTimeout(() => {
-            if (allVideos.length > 0) {
-                prepareFirstVideo();
-                setupVideoLoop();
-            }
-        }, 100);
-    });
-
-    // ============ KOD KIRITISH FUNKSIYALARI ============
+    // ============ 4 XONALI KOD KIRITISH ============
     let currentCode = '';
-    const maxCodeLength = 6;
+    const maxCodeLength = 4;
     const codeDisplay = document.getElementById('codeDisplay');
     const modalOverlay = document.getElementById('modalOverlay');
     const codeBar = document.getElementById('codeBar');
@@ -731,6 +771,7 @@
     const clearBtn = document.getElementById('clearBtn');
     const backspaceBtn = document.getElementById('backspaceBtn');
     const watchSubmitBtn = document.getElementById('watchSubmitBtn');
+    const filmLoadingOverlay = document.getElementById('filmLoadingOverlay');
 
     function updateDisplay() {
         const displayText = currentCode.padEnd(maxCodeLength, '_');
@@ -744,23 +785,31 @@
         }
     }
 
-    function clearCode() {
-        currentCode = '';
-        updateDisplay();
-    }
-
-    function backspace() {
-        currentCode = currentCode.slice(0, -1);
-        updateDisplay();
-    }
+    function clearCode() { currentCode = ''; updateDisplay(); }
+    function backspace() { currentCode = currentCode.slice(0, -1); updateDisplay(); }
 
     function submitCode() {
-        if (currentCode.length === 0) {
-            alert('Iltimos, film kodini kiriting!');
+        if (currentCode.length !== maxCodeLength) {
+            alert(`Iltimos, ${maxCodeLength} xonali kodni kiriting!`);
             return;
         }
-        const kod = currentCode.toUpperCase();
-        window.location.href = `/film/${kod}`;
+        
+        const kod = currentCode;
+        filmLoadingOverlay.classList.add('show');
+        
+        fetch(`/api/check/${kod}`)
+            .then(response => {
+                if (response.ok) {
+                    window.location.href = `/film/${kod}`;
+                } else {
+                    filmLoadingOverlay.classList.remove('show');
+                    alert('Bunday kodli film topilmadi!');
+                }
+            })
+            .catch(() => {
+                filmLoadingOverlay.classList.remove('show');
+                alert('Xatolik yuz berdi!');
+            });
     }
 
     document.querySelectorAll('.numpad-btn').forEach(btn => {
@@ -786,35 +835,21 @@
     }
 
     closeModalBtn.addEventListener('click', closeModal);
-    
-    modalOverlay.addEventListener('click', (e) => {
-        if (e.target === modalOverlay) {
-            closeModal();
-        }
-    });
+    modalOverlay.addEventListener('click', (e) => { if (e.target === modalOverlay) closeModal(); });
 
     document.addEventListener('keydown', (e) => {
         if (!modalOverlay.classList.contains('show')) return;
-        
-        if (e.key >= '0' && e.key <= '9') {
-            addDigit(e.key);
-        } else if (e.key === 'Backspace') {
-            backspace();
-        } else if (e.key === 'Delete') {
-            clearCode();
-        } else if (e.key === 'Enter') {
-            submitCode();
-        } else if (e.key === 'Escape') {
-            closeModal();
-        }
+        if (e.key >= '0' && e.key <= '9') { addDigit(e.key); }
+        else if (e.key === 'Backspace') { backspace(); }
+        else if (e.key === 'Delete') { clearCode(); }
+        else if (e.key === 'Enter') { submitCode(); }
+        else if (e.key === 'Escape') { closeModal(); }
     });
 
     // ============ SAHIFA YUKLANGANDA ============
     window.addEventListener('load', () => {
-        // Barcha shortslarni fonda yuklash
-        preloadAllShortsInBackground();
+        preloadAllShorts();
         
-        // Sound va like tugmalariga event qo'shish
         setTimeout(() => {
             document.querySelectorAll('.sound-btn').forEach(btn => {
                 const videoId = btn.getAttribute('data-id');
@@ -833,7 +868,6 @@
         }, 500);
     });
 
-    // Backgroundda yuklash davom etsin
     document.addEventListener('visibilitychange', () => {
         if (!document.hidden && currentVideo && currentVideo.paused) {
             currentVideo.play().catch(e => console.log());
