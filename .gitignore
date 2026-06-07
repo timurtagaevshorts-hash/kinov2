@@ -1,1 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
+env/
+venv/
+.venv/
 
+# Database
+*.db
+*.sqlite3
+
+# Uploads
+static/uploads/films/*
+static/uploads/shorts/*
+!static/uploads/films/.gitkeep
+!static/uploads/shorts/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
