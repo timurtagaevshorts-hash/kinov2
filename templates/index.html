@@ -565,4 +565,233 @@
                 <div class="numpad-btn" data-value=""></div>
             </div>
             <div class="numpad-actions">
-                <div class="action-btn clear" id="clearBtn">
+                <div class="action-btn clear" id="clearBtn">O'chirish</div>
+                <div class="action-btn backspace" id="backspaceBtn">⌫</div>
+            </div>
+            <button class="watch-submit" id="watchSubmitBtn">🎬 Tomosha qilish</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ============ SHORTS PLAYER ============
+    const preloader = document.getElementById('preloader');
+    const startBtn = document.getElementById('startBtn');
+    const shortsContainer = document.getElementById('shortsContainer');
+    let allVideos = [];
+
+    startBtn.addEventListener('click', () => {
+        preloader.classList.add('hide');
+        shortsContainer.style.display = 'block';
+        
+        setTimeout(() => {
+            if (allVideos.length > 0) {
+                prepareFirstVideo();
+                setupVideoLoop();
+            }
+        }, 100);
+    });
+
+    function getAllVideos() {
+        allVideos = Array.from(document.querySelectorAll('.short-video video'));
+    }
+
+    let currentIndex = 0;
+    let currentVideo = null;
+
+    function prepareFirstVideo() {
+        if (allVideos.length > 0) {
+            currentVideo = allVideos[0];
+            currentVideo.muted = false;
+            currentVideo.play().catch(e => console.log());
+            const firstSoundBtn = document.querySelector('.sound-btn');
+            if (firstSoundBtn) firstSoundBtn.innerHTML = '🔊';
+        }
+    }
+
+    function playCurrentVideoOnly() {
+        allVideos.forEach((video) => {
+            const parent = video.closest('.short-video');
+            const soundBtn = parent?.querySelector('.sound-btn');
+            video.pause();
+            video.muted = true;
+            if (soundBtn) soundBtn.innerHTML = '🔇';
+        });
+        
+        if (allVideos[currentIndex]) {
+            currentVideo = allVideos[currentIndex];
+            const parent = currentVideo.closest('.short-video');
+            const soundBtn = parent?.querySelector('.sound-btn');
+            currentVideo.muted = false;
+            currentVideo.play().catch(e => console.log());
+            if (soundBtn) soundBtn.innerHTML = '🔊';
+        }
+    }
+
+    function getCurrentIndex() {
+        const scrollTop = shortsContainer.scrollTop;
+        const itemHeight = window.innerHeight;
+        return Math.round(scrollTop / itemHeight);
+    }
+
+    let scrollTimeout;
+    shortsContainer.addEventListener('scroll', () => {
+        if (scrollTimeout) clearTimeout(scrollTimeout);
+        scrollTimeout = setTimeout(() => {
+            const newIndex = getCurrentIndex();
+            if (newIndex !== currentIndex && newIndex >= 0 && newIndex < allVideos.length) {
+                currentIndex = newIndex;
+                playCurrentVideoOnly();
+            }
+        }, 50);
+    });
+
+    function setupVideoLoop() {
+        allVideos.forEach((video, idx) => {
+            video.addEventListener('ended', () => {
+                if (idx === currentIndex) {
+                    video.currentTime = 0;
+                    video.play().catch(e => console.log());
+                }
+            });
+        });
+    }
+
+    function toggleSound(btn, videoId) {
+        const parent = btn.closest('.short-video');
+        const video = parent.querySelector('video');
+        if (video) {
+            if (video.muted) {
+                video.muted = false;
+                btn.innerHTML = '🔊';
+            } else {
+                video.muted = true;
+                btn.innerHTML = '🔇';
+            }
+        }
+    }
+
+    function likeVideo(btn) {
+        btn.style.transform = 'scale(1.2)';
+        setTimeout(() => { btn.style.transform = 'scale(1)'; }, 200);
+        btn.innerHTML = '❤️';
+        setTimeout(() => { btn.innerHTML = '❤️'; }, 1000);
+    }
+
+    // ============ 4 XONALI KOD KIRITISH ============
+    let currentCode = '';
+    const maxCodeLength = 4;
+    const codeDisplay = document.getElementById('codeDisplay');
+    const modalOverlay = document.getElementById('modalOverlay');
+    const codeBar = document.getElementById('codeBar');
+    const openModalBtn = document.getElementById('openModalBtn');
+    const closeModalBtn = document.getElementById('closeModalBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const backspaceBtn = document.getElementById('backspaceBtn');
+    const watchSubmitBtn = document.getElementById('watchSubmitBtn');
+    const filmLoadingOverlay = document.getElementById('filmLoadingOverlay');
+
+    function updateDisplay() {
+        const displayText = currentCode.padEnd(maxCodeLength, '_');
+        codeDisplay.textContent = displayText;
+    }
+
+    function addDigit(digit) {
+        if (currentCode.length < maxCodeLength) {
+            currentCode += digit;
+            updateDisplay();
+        }
+    }
+
+    function clearCode() { currentCode = ''; updateDisplay(); }
+    function backspace() { currentCode = currentCode.slice(0, -1); updateDisplay(); }
+
+    function submitCode() {
+        if (currentCode.length !== maxCodeLength) {
+            alert(`Iltimos, ${maxCodeLength} xonali kodni kiriting!`);
+            return;
+        }
+        
+        const kod = currentCode;
+        filmLoadingOverlay.classList.add('show');
+        
+        fetch(`/api/check/${kod}`)
+            .then(response => {
+                if (response.ok) {
+                    window.location.href = `/film/${kod}`;
+                } else {
+                    filmLoadingOverlay.classList.remove('show');
+                    alert('Bunday kodli film topilmadi!');
+                }
+            })
+            .catch(() => {
+                filmLoadingOverlay.classList.remove('show');
+                alert('Xatolik yuz berdi!');
+            });
+    }
+
+    document.querySelectorAll('.numpad-btn').forEach(btn => {
+        const value = btn.getAttribute('data-value');
+        if (value && value.trim() !== '') {
+            btn.addEventListener('click', () => addDigit(value));
+        }
+    });
+
+    clearBtn.addEventListener('click', clearCode);
+    backspaceBtn.addEventListener('click', backspace);
+    watchSubmitBtn.addEventListener('click', submitCode);
+
+    openModalBtn.addEventListener('click', () => {
+        modalOverlay.classList.add('show');
+        codeBar.classList.add('hidden');
+    });
+
+    function closeModal() {
+        modalOverlay.classList.remove('show');
+        codeBar.classList.remove('hidden');
+        clearCode();
+    }
+
+    closeModalBtn.addEventListener('click', closeModal);
+    modalOverlay.addEventListener('click', (e) => { if (e.target === modalOverlay) closeModal(); });
+
+    document.addEventListener('keydown', (e) => {
+        if (!modalOverlay.classList.contains('show')) return;
+        if (e.key >= '0' && e.key <= '9') { addDigit(e.key); }
+        else if (e.key === 'Backspace') { backspace(); }
+        else if (e.key === 'Delete') { clearCode(); }
+        else if (e.key === 'Enter') { submitCode(); }
+        else if (e.key === 'Escape') { closeModal(); }
+    });
+
+    // ============ SAHIFA YUKLANGANDA ============
+    window.addEventListener('load', () => {
+        getAllVideos();
+        
+        setTimeout(() => {
+            document.querySelectorAll('.sound-btn').forEach(btn => {
+                const videoId = btn.getAttribute('data-id');
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    toggleSound(this, videoId);
+                });
+            });
+            
+            document.querySelectorAll('.like-btn').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    likeVideo(this);
+                });
+            });
+        }, 500);
+    });
+
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && currentVideo && currentVideo.paused) {
+            currentVideo.play().catch(e => console.log());
+        }
+    });
+</script>
+
+</body>
+</html>
