@@ -5,230 +5,204 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>{{ film.nomi }} | Kinotop</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            background: #000;
-            min-height: 100vh;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        }
-
-        .navbar {
-            background: rgba(0,0,0,0.5);
-            backdrop-filter: blur(10px);
-            padding: 15px 20px;
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #0f0f0f; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        
+        .header {
             position: fixed;
             top: 0;
             left: 0;
             right: 0;
+            background: rgba(0,0,0,0.95);
+            padding: 12px 20px;
             z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
         }
-
-        .navbar a {
-            color: white;
-            text-decoration: none;
-            font-size: 1.2rem;
-            font-weight: bold;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 80px 20px 40px;
-        }
-
-        .video-wrapper {
-            background: #000;
-            border-radius: 20px;
-            overflow: hidden;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
-        }
-
-        video {
-            width: 100%;
-            max-height: 70vh;
-            background: #000;
-        }
-
-        .film-info {
-            background: rgba(255,255,255,0.1);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            padding: 25px;
-            margin-top: 20px;
-        }
-
-        .film-info h1 {
-            color: white;
-            font-size: 1.8rem;
-            margin-bottom: 10px;
-        }
-
-        .film-code {
-            display: inline-block;
+        .header a { color: white; text-decoration: none; font-size: 1.2rem; font-weight: bold; }
+        .download-btn {
             background: linear-gradient(135deg, #667eea, #764ba2);
-            padding: 5px 15px;
-            border-radius: 20px;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 30px;
             color: white;
-            font-size: 0.85rem;
-            margin-bottom: 15px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
-
-        .film-details {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-
-        .detail-card {
-            background: rgba(255,255,255,0.05);
-            border-radius: 10px;
-            padding: 12px;
-        }
-
-        .detail-label {
-            color: rgba(255,255,255,0.6);
-            font-size: 0.75rem;
-            text-transform: uppercase;
-        }
-
-        .detail-value {
-            color: white;
-            font-size: 1rem;
-            margin-top: 5px;
-        }
-
-        .film-description {
-            color: rgba(255,255,255,0.8);
-            line-height: 1.6;
-            margin-top: 15px;
-            padding-top: 15px;
-            border-top: 1px solid rgba(255,255,255,0.1);
-        }
-
-        .btn-back {
-            display: inline-block;
-            margin-top: 20px;
-            color: #667eea;
-            text-decoration: none;
-        }
-
-        .loading-indicator {
-            position: fixed;
+        .container { max-width: 1200px; margin: 0 auto; padding: 70px 15px 30px; }
+        .video-wrapper { background: #000; border-radius: 16px; overflow: hidden; position: relative; }
+        video { width: 100%; max-height: 70vh; background: #000; }
+        
+        .info { background: #1a1a1a; border-radius: 16px; padding: 20px; margin-top: 20px; }
+        .info h1 { color: white; font-size: 1.5rem; margin-bottom: 8px; }
+        .film-code { display: inline-block; background: linear-gradient(135deg, #667eea, #764ba2); padding: 4px 12px; border-radius: 20px; color: white; font-size: 0.8rem; margin-bottom: 15px; }
+        .details { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 15px; }
+        .detail { background: #2a2a2a; padding: 10px 15px; border-radius: 12px; }
+        .detail-label { color: #aaa; font-size: 0.7rem; text-transform: uppercase; }
+        .detail-value { color: white; font-size: 0.9rem; margin-top: 3px; }
+        .description { color: #ccc; line-height: 1.5; margin-top: 15px; padding-top: 15px; border-top: 1px solid #333; }
+        .back-btn { display: inline-block; margin-top: 20px; color: #667eea; text-decoration: none; }
+        
+        .loading-bar { position: fixed; bottom: 0; left: 0; width: 100%; height: 3px; background: rgba(102,126,234,0.3); z-index: 101; }
+        .loading-progress { width: 0%; height: 100%; background: linear-gradient(90deg, #667eea, #764ba2); transition: width 0.2s; }
+        
+        .buffer-indicator {
+            position: absolute;
             bottom: 20px;
             right: 20px;
             background: rgba(0,0,0,0.7);
-            color: white;
-            padding: 8px 16px;
+            padding: 5px 10px;
             border-radius: 20px;
-            font-size: 0.8rem;
-            z-index: 100;
+            color: white;
+            font-size: 0.7rem;
+            z-index: 10;
         }
-
+        
         @media (max-width: 768px) {
-            .container { padding: 70px 15px 30px; }
-            .film-info h1 { font-size: 1.4rem; }
+            .container { padding: 60px 12px 20px; }
+            .info h1 { font-size: 1.2rem; }
+            .header { flex-direction: column; }
         }
     </style>
 </head>
 <body>
 
-<nav class="navbar">
+<div class="header">
     <a href="/">🎬 KINOTOP</a>
-</nav>
+    <button class="download-btn" id="downloadBtn">📥 Yuklab olish</button>
+</div>
+
+<div class="loading-bar">
+    <div class="loading-progress" id="progressBar"></div>
+</div>
 
 <div class="container">
     <div class="video-wrapper">
         <video id="videoPlayer" controls autoplay preload="auto" playsinline>
             <source src="/stream/{{ film.kod }}" type="video/mp4">
-            Brauzeringiz video formatini qo'llab-quvvatlamaydi.
         </video>
+        <div class="buffer-indicator" id="bufferIndicator">📥 Yuklanmoqda...</div>
     </div>
     
-    <div class="film-info">
+    <div class="info">
         <h1>{{ film.nomi }}</h1>
-        <div class="film-code">🔑 Kod: {{ film.kod }}</div>
+        <div class="film-code">🔑 {{ film.kod }}</div>
         
-        <div class="film-details">
-            <div class="detail-card">
+        <div class="details">
+            <div class="detail">
                 <div class="detail-label">Yil</div>
                 <div class="detail-value">{{ film.yil if film.yil else "Noma'lum" }}</div>
             </div>
-            <div class="detail-card">
+            <div class="detail">
                 <div class="detail-label">Janr</div>
                 <div class="detail-value">{{ film.janr if film.janr else "Noma'lum" }}</div>
             </div>
         </div>
         
-        <div class="film-description">
-            {{ film.tafsilot if film.tafsilot else "Bu film haqida ma'lumot yo'q." }}
+        <div class="description">
+            {{ film.tafsilot if film.tafsilot else "Ma'lumot yo'q" }}
         </div>
         
-        <a href="/" class="btn-back">← Bosh sahifaga qaytish</a>
+        <a href="/" class="back-btn">← Bosh sahifa</a>
     </div>
 </div>
 
-<div class="loading-indicator" id="loadingIndicator">📥 Yuklanmoqda...</div>
-
 <script>
     const video = document.getElementById('videoPlayer');
-    const indicator = document.getElementById('loadingIndicator');
-    let bufferingCount = 0;
-
+    const progressBar = document.getElementById('progressBar');
+    const bufferIndicator = document.getElementById('bufferIndicator');
+    const downloadBtn = document.getElementById('downloadBtn');
+    
+    // Live streaming - darhol boshlanadi
     video.addEventListener('loadstart', () => {
-        indicator.style.display = 'block';
-        indicator.innerHTML = '📥 Yuklanmoqda...';
+        bufferIndicator.style.display = 'block';
+        bufferIndicator.innerHTML = '🎬 Boshlanmoqda...';
     });
-
+    
     video.addEventListener('canplay', () => {
-        indicator.style.display = 'none';
+        bufferIndicator.style.display = 'none';
     });
-
+    
     video.addEventListener('waiting', () => {
-        bufferingCount++;
-        indicator.style.display = 'block';
-        indicator.innerHTML = '⏳ Yuklanmoqda...';
+        bufferIndicator.style.display = 'block';
+        bufferIndicator.innerHTML = '⏳ Yuklanmoqda...';
     });
-
+    
     video.addEventListener('playing', () => {
-        indicator.style.display = 'none';
+        bufferIndicator.style.display = 'none';
     });
-
+    
+    // Cache progress
     video.addEventListener('progress', () => {
         if (video.buffered.length > 0) {
-            const buffered = video.buffered.end(0);
-            const duration = video.duration;
-            const percent = (buffered / duration) * 100;
-            if (percent > 0 && percent < 100) {
-                indicator.innerHTML = `📥 Yuklandi: ${Math.round(percent)}%`;
-            }
-            if (percent >= 100) {
-                indicator.innerHTML = '✅ Yuklab olindi!';
-                setTimeout(() => { indicator.style.display = 'none'; }, 2000);
+            const percent = (video.buffered.end(0) / video.duration) * 100;
+            progressBar.style.width = percent + '%';
+            
+            if (percent < 100) {
+                bufferIndicator.innerHTML = `📥 Yuklandi: ${Math.round(percent)}%`;
+            } else {
+                bufferIndicator.innerHTML = '✅ To\'liq yuklandi!';
+                setTimeout(() => {
+                    bufferIndicator.style.opacity = '0';
+                    setTimeout(() => {
+                        bufferIndicator.style.display = 'none';
+                    }, 500);
+                }, 2000);
             }
         }
     });
-
-    video.addEventListener('error', (e) => {
-        console.error('Video error:', e);
-        indicator.innerHTML = '❌ Xatolik! Qayta yuklanmoqda...';
+    
+    // Download function
+    downloadBtn.addEventListener('click', () => {
+        const link = document.createElement('a');
+        link.href = `/download/{{ film.kod }}`;
+        link.download = '{{ film.nomi }}.mp4';
+        link.click();
+        
+        // Download started indicator
+        const originalText = downloadBtn.innerHTML;
+        downloadBtn.innerHTML = '📥 Yuklanmoqda...';
         setTimeout(() => {
-            video.load();
+            downloadBtn.innerHTML = originalText;
         }, 2000);
     });
-
-    // Agar 3 sekunddan keyin ham boshlanmasa, qayta yuklash
-    setTimeout(() => {
-        if (video.readyState < 2) {
-            video.load();
+    
+    // Resume from cache (keyingi safar tez boshlanadi)
+    const lastTime = localStorage.getItem(`kinotop_${Date.now()}`);
+    if (lastTime && lastTime > 30) {
+        video.currentTime = lastTime;
+    }
+    
+    // Save progress to cache
+    setInterval(() => {
+        if (video.currentTime > 30) {
+            localStorage.setItem(`kinotop_${Date.now()}`, video.currentTime);
         }
-    }, 3000);
+    }, 10000);
+    
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+        if (e.code === 'Space') {
+            e.preventDefault();
+            video.paused ? video.play() : video.pause();
+        }
+        if (e.code === 'ArrowLeft') {
+            video.currentTime -= 10;
+        }
+        if (e.code === 'ArrowRight') {
+            video.currentTime += 10;
+        }
+        if (e.code === 'KeyF') {
+            video.requestFullscreen();
+        }
+    });
 </script>
-
 </body>
 </html>
