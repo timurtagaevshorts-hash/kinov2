@@ -10,12 +10,11 @@ app.secret_key = os.environ.get('SECRET_KEY', 'kinotop-secret-key-2024')
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 app.config['UPLOAD_FOLDER_FILMS'] = os.path.join(BASE_DIR, 'static/uploads/films')
 app.config['UPLOAD_FOLDER_SHORTS'] = os.path.join(BASE_DIR, 'static/uploads/shorts')
-app.config['MAX_CONTENT_LENGTH'] = 4 * 1024 * 1024 * 1024  # 4GB
+app.config['MAX_CONTENT_LENGTH'] = 4 * 1024 * 1024 * 1024
 
 ALLOWED_VIDEO = {'mp4', 'avi', 'mkv', 'mov', 'webm', 'm4v'}
 ALLOWED_IMAGE = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
-# Papkalarni yaratish
 os.makedirs(app.config['UPLOAD_FOLDER_FILMS'], exist_ok=True)
 os.makedirs(app.config['UPLOAD_FOLDER_SHORTS'], exist_ok=True)
 os.makedirs(os.path.join(BASE_DIR, 'static/uploads'), exist_ok=True)
@@ -26,7 +25,7 @@ def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not session.get('admin_logged_in'):
-            return redirect(url_for('admin_login'))
+            return render_template('admin.html', login=False)
         return f(*args, **kwargs)
     return decorated_function
 
@@ -45,8 +44,7 @@ def init_db():
         janr TEXT,
         rasm TEXT,
         fayl_nomi TEXT NOT NULL,
-        size INTEGER DEFAULT 0,
-        korishlar INTEGER DEFAULT 0
+        size INTEGER DEFAULT 0
     )''')
     
     c.execute('''CREATE TABLE IF NOT EXISTS shorts (
@@ -55,8 +53,7 @@ def init_db():
         tafsilot TEXT,
         fayl_nomi TEXT NOT NULL,
         sana TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        size INTEGER DEFAULT 0,
-        korishlar INTEGER DEFAULT 0
+        size INTEGER DEFAULT 0
     )''')
     
     c.execute('''CREATE TABLE IF NOT EXISTS featured_films (
@@ -195,7 +192,7 @@ def index():
     db_path = os.path.join(BASE_DIR, 'database.db')
     conn = sqlite3.connect(db_path)
     c = conn.cursor()
-    c.execute("SELECT * FROM shorts ORDER BY sana DESC LIMIT 20")
+    c.execute("SELECT * FROM shorts ORDER BY sana DESC")
     rows = c.fetchall()
     shorts = [{'id': r[0], 'sarlavha': r[1], 'tafsilot': r[2], 'fayl_nomi': r[3], 'sana': r[4]} for r in rows]
     conn.close()
@@ -211,14 +208,6 @@ def film(kod):
     conn.close()
     if not row:
         return "Film topilmadi!", 404
-    
-    # Ko'rishlar sonini oshirish
-    conn = sqlite3.connect(db_path)
-    c = conn.cursor()
-    c.execute("UPDATE films SET korishlar = korishlar + 1 WHERE kod = ?", (kod.upper(),))
-    conn.commit()
-    conn.close()
-    
     film = {
         'id': row[0], 'kod': row[1], 'nomi': row[2],
         'tafsilot': row[3], 'yil': row[4], 'janr': row[5],
@@ -226,76 +215,50 @@ def film(kod):
     }
     return render_template('film.html', film=film)
 
-@app.route('/shorts/<int:id>')
-def shorts_view(id):
-    db_path = os.path.join(BASE_DIR, 'database.db')
-    conn = sqlite3.connect(db_path)
-    c = conn.cursor()
-    c.execute("SELECT * FROM shorts WHERE id = ?", (id,))
-    row = c.fetchone()
-    conn.close()
+# ============ ADMIN PANEL (SIZNING admin.html BILAN ISHLAYDI) ============
+@app.route('/admin', methods=['GET', 'POST'])
+def admin():
+    # Agar login qilingan bo'lsa, dashboardni ko'rsat
+    if session.get('admin_logged_in'):
+        db_path = os.path.join(BASE_DIR, 'database.db')
+        conn = sqlite3.connect(db_path)
+        c = conn.cursor()
+        c.execute("SELECT * FROM films ORDER BY id DESC")
+        filmlar = [{'id': r[0], 'kod': r[1], 'nomi': r[2], 'tafsilot': r[3], 'yil': r[4], 'janr': r[5], 'rasm': r[6], 'fayl_nomi': r[7]} for r in c.fetchall()]
+        c.execute("SELECT * FROM shorts ORDER BY sana DESC")
+        shorts_list = [{'id': r[0], 'sarlavha': r[1], 'tafsilot': r[2], 'fayl_nomi': r[3], 'sana': r[4]} for r in c.fetchall()]
+        c.execute("SELECT COUNT(*) FROM films")
+        total_films = c.fetchone()[0]
+        c.execute("SELECT COUNT(*) FROM shorts")
+        total_shorts = c.fetchone()[0]
+        conn.close()
+        return render_template('admin.html', login=True, parol=ADMIN_PASSWORD, 
+                               filmlar=filmlar, shorts_list=shorts_list,
+                               total_films=total_films, total_shorts=total_shorts)
     
-    if not row:
-        return "Short topilmadi!", 404
-    
-    # Ko'rishlar sonini oshirish
-    conn = sqlite3.connect(db_path)
-    c = conn.cursor()
-    c.execute("UPDATE shorts SET korishlar = korishlar + 1 WHERE id = ?", (id,))
-    conn.commit()
-    conn.close()
-    
-    short = {
-        'id': row[0], 'sarlavha': row[1], 'tafsilot': row[2],
-        'fayl_nomi': row[3], 'sana': row[4]
-    }
-    return render_template('shorts.html', short=short)
-
-# ============ ADMIN AUTHENTICATION ============
-@app.route('/admin/login', methods=['GET', 'POST'])
-def admin_login():
+    # Login qilinmagan bo'lsa, POST tekshirish
     if request.method == 'POST':
         parol = request.form.get('parol')
         if parol == ADMIN_PASSWORD:
             session['admin_logged_in'] = True
-            return redirect(url_for('admin_dashboard'))
-        return render_template('admin_login.html', error="❌ Parol noto'g'ri!")
-    return render_template('admin_login.html')
+            # Qayta yuklash va dashboardni ko'rsatish
+            return redirect(url_for('admin'))
+        else:
+            return render_template('admin.html', login=False, xato="❌ Parol noto'g'ri!")
+    
+    # GET so'rovi va login qilinmagan - login formasini ko'rsatish
+    return render_template('admin.html', login=False)
 
 @app.route('/admin/logout')
 def admin_logout():
     session.pop('admin_logged_in', None)
-    return redirect(url_for('admin_login'))
+    return redirect(url_for('admin'))
 
-# ============ ADMIN DASHBOARD ============
-@app.route('/admin')
-def admin_dashboard():
-    if not session.get('admin_logged_in'):
-        return redirect(url_for('admin_login'))
-    
-    db_path = os.path.join(BASE_DIR, 'database.db')
-    conn = sqlite3.connect(db_path)
-    c = conn.cursor()
-    c.execute("SELECT * FROM films ORDER BY id DESC")
-    filmlar = [{'id': r[0], 'kod': r[1], 'nomi': r[2], 'tafsilot': r[3], 'yil': r[4], 'janr': r[5], 'rasm': r[6], 'fayl_nomi': r[7]} for r in c.fetchall()]
-    c.execute("SELECT * FROM shorts ORDER BY sana DESC")
-    shorts_list = [{'id': r[0], 'sarlavha': r[1], 'tafsilot': r[2], 'fayl_nomi': r[3], 'sana': r[4]} for r in c.fetchall()]
-    c.execute("SELECT COUNT(*) FROM films")
-    total_films = c.fetchone()[0]
-    c.execute("SELECT COUNT(*) FROM shorts")
-    total_shorts = c.fetchone()[0]
-    conn.close()
-    
-    return render_template('admin.html', 
-                          filmlar=filmlar, 
-                          shorts_list=shorts_list,
-                          total_films=total_films,
-                          total_shorts=total_shorts)
-
+# ============ ADMIN CRUD ============
 @app.route('/admin/film', methods=['POST'])
 def admin_film():
     if not session.get('admin_logged_in'):
-        return redirect(url_for('admin_login'))
+        return redirect(url_for('admin'))
     
     kod = request.form['kod'].strip().upper()
     nomi = request.form['nomi'].strip()
@@ -342,12 +305,12 @@ def admin_film():
     finally:
         conn.close()
     
-    return redirect(url_for('admin_dashboard'))
+    return redirect(url_for('admin'))
 
 @app.route('/admin/shorts', methods=['POST'])
 def admin_shorts():
     if not session.get('admin_logged_in'):
-        return redirect(url_for('admin_login'))
+        return redirect(url_for('admin'))
     
     sarlavha = request.form['sarlavha'].strip()
     tafsilot = request.form.get('tafsilot', '')
@@ -377,12 +340,12 @@ def admin_shorts():
     conn.commit()
     conn.close()
     
-    return redirect(url_for('admin_dashboard'))
+    return redirect(url_for('admin'))
 
 @app.route('/admin/film/delete/<int:id>', methods=['POST'])
 def admin_film_delete(id):
     if not session.get('admin_logged_in'):
-        return redirect(url_for('admin_login'))
+        return redirect(url_for('admin'))
     
     db_path = os.path.join(BASE_DIR, 'database.db')
     conn = sqlite3.connect(db_path)
@@ -404,12 +367,12 @@ def admin_film_delete(id):
         conn.commit()
     
     conn.close()
-    return redirect(url_for('admin_dashboard'))
+    return redirect(url_for('admin'))
 
 @app.route('/admin/shorts/delete/<int:id>', methods=['POST'])
 def admin_shorts_delete(id):
     if not session.get('admin_logged_in'):
-        return redirect(url_for('admin_login'))
+        return redirect(url_for('admin'))
     
     db_path = os.path.join(BASE_DIR, 'database.db')
     conn = sqlite3.connect(db_path)
@@ -426,7 +389,7 @@ def admin_shorts_delete(id):
         conn.commit()
     
     conn.close()
-    return redirect(url_for('admin_dashboard'))
+    return redirect(url_for('admin'))
 
 # ============ ERROR HANDLERS ============
 @app.errorhandler(404)
@@ -437,25 +400,20 @@ def not_found(error):
 def internal_error(error):
     return "<h1>500 - Server xatosi!</h1><a href='/'>Bosh sahifaga qaytish</a>", 500
 
-# ============ STATIC FILES ============
-@app.route('/static/uploads/<path:filename>')
-def serve_upload(filename):
-    return send_from_directory(os.path.join(BASE_DIR, 'static/uploads'), filename)
-
 # ============ MAIN ============
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
     print("""
-    ╔══════════════════════════════════════════════════════════════════════════╗
-    ║                                                                          ║
-    ║           🎬 KINOTOP - DIGITALOCEAN READY 🎬                             ║
-    ║                                                                          ║
-    ╠══════════════════════════════════════════════════════════════════════════╣
-    ║                                                                          ║
-    ║  🌐 PORT:        {}                                                       ║
-    ║  🔐 ADMIN:       /admin/login                                            ║
-    ║  📝 ADMIN PASS:  admin123                                                ║
-    ║                                                                          ║
-    ╚══════════════════════════════════════════════════════════════════════════╝
+    ╔══════════════════════════════════════════════════════════════╗
+    ║                                                              ║
+    ║         🎬 KINOTOP - DIGITALOCEAN READY 🎬                  ║
+    ║                                                              ║
+    ╠══════════════════════════════════════════════════════════════╣
+    ║                                                              ║
+    ║  🌐 PORT:        {}                                          ║
+    ║  🔐 ADMIN:       /admin                                     ║
+    ║  📝 ADMIN PASS:  admin123                                   ║
+    ║                                                              ║
+    ╚══════════════════════════════════════════════════════════════╝
     """.format(port))
     app.run(host='0.0.0.0', port=port, debug=False, threaded=True)
