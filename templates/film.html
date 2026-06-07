@@ -77,7 +77,14 @@
 
 <div class="container">
     <div class="video-wrapper">
-        <video id="videoPlayer" controls autoplay preload="auto" playsinline width="100%">
+        <video
+            id="videoPlayer"
+            controls
+            autoplay
+            muted
+            playsinline
+            preload="metadata"
+            width="100%">
             <source src="/stream/{{ film.kod }}" type="video/mp4">
         </video>
     </div>
@@ -112,41 +119,20 @@
     const downloadBtn = document.getElementById('downloadBtn');
     const bufferStatus = document.getElementById('bufferStatus');
     
-    // Video darhol boshlansin
-    video.preload = 'auto';
-    
-    video.addEventListener('loadstart', () => {
-        bufferStatus.style.display = 'block';
-        bufferStatus.innerHTML = '🎬 Boshlanmoqda...';
+    // Metadata yuklanganda darhol boshlash
+    video.addEventListener('loadedmetadata', () => {
+        video.play().catch(() => {});
     });
     
-    video.addEventListener('canplay', () => {
-        bufferStatus.style.display = 'none';
-        video.play().catch(e => console.log('Auto play blocked'));
-    });
-    
+    // Kutish holatida
     video.addEventListener('waiting', () => {
         bufferStatus.style.display = 'block';
         bufferStatus.innerHTML = '⏳ Yuklanmoqda...';
     });
     
+    // O'ynash boshlanganda
     video.addEventListener('playing', () => {
         bufferStatus.style.display = 'none';
-    });
-    
-    video.addEventListener('progress', () => {
-        if (video.buffered.length > 0) {
-            const percent = (video.buffered.end(0) / video.duration) * 100;
-            if (percent < 100 && percent > 0) {
-                bufferStatus.style.display = 'block';
-                bufferStatus.innerHTML = `📥 ${Math.round(percent)}% yuklandi`;
-            } else if (percent >= 100) {
-                bufferStatus.innerHTML = '✅ To\'liq yuklandi';
-                setTimeout(() => {
-                    bufferStatus.style.display = 'none';
-                }, 2000);
-            }
-        }
     });
     
     // Yuklab olish
@@ -179,13 +165,6 @@
             video.requestFullscreen();
         }
     });
-    
-    // Video darhol boshlash
-    setTimeout(() => {
-        if (video.paused && video.readyState >= 2) {
-            video.play().catch(e => console.log('Play blocked'));
-        }
-    }, 100);
 </script>
 </body>
 </html>
