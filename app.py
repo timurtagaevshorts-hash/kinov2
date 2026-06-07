@@ -1,20 +1,25 @@
 import os
 import sqlite3
-from flask import Flask, render_template, request, redirect, url_for, send_from_directory, Response, jsonify
+from flask import Flask, render_template, request, redirect, url_for, send_from_directory, Response, jsonify, send_file
 from datetime import datetime
+import hashlib
+import mimetypes
 
 app = Flask(__name__)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 app.config['UPLOAD_FOLDER_FILMS'] = os.path.join(BASE_DIR, 'static/uploads/films')
 app.config['UPLOAD_FOLDER_SHORTS'] = os.path.join(BASE_DIR, 'static/uploads/shorts')
+app.config['CACHE_FOLDER'] = os.path.join(BASE_DIR, 'static/cache')
 app.config['MAX_CONTENT_LENGTH'] = 4 * 1024 * 1024 * 1024
 
-ALLOWED_VIDEO = {'mp4', 'avi', 'mkv', 'mov', 'webm'}
-ALLOWED_IMAGE = {'png', 'jpg', 'jpeg', 'gif'}
+ALLOWED_VIDEO = {'mp4', 'avi', 'mkv', 'mov', 'webm', 'm4v'}
+ALLOWED_IMAGE = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
+# Papkalarni yaratish
 os.makedirs(app.config['UPLOAD_FOLDER_FILMS'], exist_ok=True)
 os.makedirs(app.config['UPLOAD_FOLDER_SHORTS'], exist_ok=True)
+os.makedirs(app.config['CACHE_FOLDER'], exist_ok=True)
 os.makedirs(os.path.join(BASE_DIR, 'static/uploads'), exist_ok=True)
 
 ADMIN_PASSWORD = 'admin123'
@@ -31,14 +36,16 @@ def init_db():
         yil TEXT,
         janr TEXT,
         rasm TEXT,
-        fayl_nomi TEXT NOT NULL
+        fayl_nomi TEXT NOT NULL,
+        size INTEGER DEFAULT 0
     )''')
     c.execute('''CREATE TABLE IF NOT EXISTS shorts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         sarlavha TEXT NOT NULL,
         tafsilot TEXT,
         fayl_nomi TEXT NOT NULL,
-        sana TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        sana TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        size INTEGER DEFAULT 0
     )''')
     c.execute('''CREATE TABLE IF NOT EXISTS yangi_filmlar (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -54,13 +61,13 @@ init_db()
 def allowed_file(filename, allowed):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed
 
-# ============ VIDEO STREAMING ============
+# ============ LIVE STREAMING (YUKLASHNI KUTMASDAN) ============
 @app.route('/stream/<kod>')
 def stream_video(kod):
     db_path = os.path.join(BASE_DIR, 'database.db')
     conn = sqlite3.connect(db_path)
     c = conn.cursor()
-    c.execute("SELECT fayl_nomi FROM films WHERE kod = ?", (kod,))
+    c.execute("SELECT fayl_nomi, size FROM films WHERE kod = ?", (kod,))
     row = c.fetchone()
     conn.close()
     
@@ -71,26 +78,29 @@ def stream_video(kod):
     if not os.path.exists(video_path):
         return "Video topilmadi!", 404
     
-    file_size = os.path.getsize(video_path)
+    file_size = row[1] if row[1] else os.path.getsize(video_path)
     range_header = request.headers.get('Range', None)
     
-    def generate(video_path, start, length):
+    def generate_live(video_path, start, length, chunk_size=512*1024):
+        """Live streaming - to'liq yuklashni kutmaydi"""
         with open(video_path, "rb") as f:
             f.seek(start)
-            sent = 0
-            while sent < length:
-                chunk = f.read(1024 * 1024)
+            bytes_sent = 0
+            while bytes_sent < length:
+                chunk = f.read(min(chunk_size, length - bytes_sent))
                 if not chunk:
                     break
-                sent += len(chunk)
+                bytes_sent += len(chunk)
                 yield chunk
     
     if not range_header:
-        first_chunk = 2 * 1024 * 1024
-        response = Response(generate(video_path, 0, min(first_chunk, file_size)), 206, mimetype="video/mp4")
+        # Darhol 1MB yuborish - video boshlanadi
+        first_chunk = 1024 * 1024
+        response = Response(generate_live(video_path, 0, min(first_chunk, file_size)), 206, mimetype="video/mp4")
         response.headers["Content-Range"] = f"bytes 0-{min(first_chunk, file_size)-1}/{file_size}"
         response.headers["Accept-Ranges"] = "bytes"
         response.headers["Content-Length"] = str(min(first_chunk, file_size))
+        response.headers["Cache-Control"] = "public, max-age=86400"
         return response
     
     byte1, byte2 = 0, None
@@ -104,12 +114,74 @@ def stream_video(kod):
     if byte2 is not None:
         length = byte2 - byte1 + 1
     
-    response = Response(generate(video_path, byte1, length), 206, mimetype="video/mp4")
+    response = Response(generate_live(video_path, byte1, length), 206, mimetype="video/mp4")
     response.headers.add("Content-Range", f"bytes {byte1}-{byte1 + length - 1}/{file_size}")
     response.headers.add("Accept-Ranges", "bytes")
     response.headers.add("Content-Length", str(length))
+    response.headers.add("Cache-Control", "public, max-age=86400")
     return response
 
+# ============ CACHE ORQALI DOWNLOAD (KEYINGI SAFAR TEZ) ============
+@app.route('/download/<kod>')
+def download_film(kod):
+    db_path = os.path.join(BASE_DIR, 'database.db')
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+    c.execute("SELECT fayl_nomi, nomi FROM films WHERE kod = ?", (kod,))
+    row = c.fetchone()
+    conn.close()
+    
+    if not row:
+        return "Film topilmadi!", 404
+    
+    video_path = os.path.join(app.config['UPLOAD_FOLDER_FILMS'], row[0])
+    film_nomi = row[1]
+    
+    if not os.path.exists(video_path):
+        return "Video topilmadi!", 404
+    
+    return send_file(
+        video_path,
+        as_attachment=True,
+        download_name=f"{film_nomi}.mp4",
+        mimetype='video/mp4',
+        conditional=True  # Cache support
+    )
+
+@app.route('/download-shorts/<int:id>')
+def download_shorts(id):
+    db_path = os.path.join(BASE_DIR, 'database.db')
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+    c.execute("SELECT fayl_nomi, sarlavha FROM shorts WHERE id = ?", (id,))
+    row = c.fetchone()
+    conn.close()
+    
+    if not row:
+        return "Short topilmadi!", 404
+    
+    video_path = os.path.join(app.config['UPLOAD_FOLDER_SHORTS'], row[0])
+    sarlavha = row[1]
+    
+    if not os.path.exists(video_path):
+        return "Video topilmadi!", 404
+    
+    return send_file(
+        video_path,
+        as_attachment=True,
+        download_name=f"{sarlavha}.mp4",
+        mimetype='video/mp4'
+    )
+
+# ============ CACHE HEADERS ============
+@app.after_request
+def add_cache_headers(response):
+    """Cache headers - keyingi safar tez yuklash uchun"""
+    response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    return response
+
+# ============ SHORTS STREAMING ============
 @app.route('/stream-shorts/<int:id>')
 def stream_shorts(id):
     db_path = os.path.join(BASE_DIR, 'database.db')
@@ -126,15 +198,17 @@ def stream_shorts(id):
     if not os.path.exists(video_path):
         return "Video topilmadi", 404
     
-    def generate_fast(video_path):
+    file_size = os.path.getsize(video_path)
+    
+    def generate_fast():
         with open(video_path, "rb") as f:
             while True:
-                chunk = f.read(512 * 1024)
+                chunk = f.read(256 * 1024)
                 if not chunk:
                     break
                 yield chunk
     
-    response = Response(generate_fast(video_path), 200, mimetype="video/mp4")
+    response = Response(generate_fast(), 200, mimetype="video/mp4")
     response.headers["Accept-Ranges"] = "bytes"
     response.headers["Cache-Control"] = "public, max-age=31536000"
     return response
@@ -145,11 +219,11 @@ def check_film(kod):
     db_path = os.path.join(BASE_DIR, 'database.db')
     conn = sqlite3.connect(db_path)
     c = conn.cursor()
-    c.execute("SELECT id FROM films WHERE kod = ?", (kod.upper(),))
+    c.execute("SELECT id, nomi FROM films WHERE kod = ?", (kod.upper(),))
     row = c.fetchone()
     conn.close()
     if row:
-        return jsonify({"exists": True}), 200
+        return jsonify({"exists": True, "nomi": row[1]}), 200
     return jsonify({"exists": False}), 404
 
 # ============ SAHIFALAR ============
@@ -221,6 +295,7 @@ def admin_film():
     ext = fayl.filename.rsplit('.', 1)[1].lower()
     yangi_nom = f"{kod}.{ext}"
     fayl.save(os.path.join(app.config['UPLOAD_FOLDER_FILMS'], yangi_nom))
+    file_size = os.path.getsize(os.path.join(app.config['UPLOAD_FOLDER_FILMS'], yangi_nom))
     
     rasm_nomi = None
     if 'rasm' in request.files:
@@ -235,8 +310,8 @@ def admin_film():
     c = conn.cursor()
     
     try:
-        c.execute("INSERT INTO films (kod, nomi, tafsilot, yil, janr, rasm, fayl_nomi) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                  (kod, nomi, tafsilot, yil, janr, rasm_nomi, yangi_nom))
+        c.execute("INSERT INTO films (kod, nomi, tafsilot, yil, janr, rasm, fayl_nomi, size) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                  (kod, nomi, tafsilot, yil, janr, rasm_nomi, yangi_nom, file_size))
         film_id = c.lastrowid
         c.execute("INSERT INTO yangi_filmlar (film_id) VALUES (?)", (film_id,))
         conn.commit()
@@ -271,12 +346,13 @@ def admin_shorts():
     ext = fayl.filename.rsplit('.', 1)[1].lower()
     yangi_nom = f"short_{timestamp}.{ext}"
     fayl.save(os.path.join(app.config['UPLOAD_FOLDER_SHORTS'], yangi_nom))
+    file_size = os.path.getsize(os.path.join(app.config['UPLOAD_FOLDER_SHORTS'], yangi_nom))
     
     db_path = os.path.join(BASE_DIR, 'database.db')
     conn = sqlite3.connect(db_path)
     c = conn.cursor()
-    c.execute("INSERT INTO shorts (sarlavha, tafsilot, fayl_nomi) VALUES (?, ?, ?)",
-              (sarlavha, tafsilot, yangi_nom))
+    c.execute("INSERT INTO shorts (sarlavha, tafsilot, fayl_nomi, size) VALUES (?, ?, ?, ?)",
+              (sarlavha, tafsilot, yangi_nom, file_size))
     conn.commit()
     conn.close()
     
