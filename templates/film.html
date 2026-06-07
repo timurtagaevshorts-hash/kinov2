@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>{{ film.nomi }} | Kinotop</title>
-    <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { background: #000; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
@@ -37,7 +36,7 @@
         
         .container { max-width: 1200px; margin: 0 auto; padding: 70px 15px 30px; }
         .video-wrapper { background: #000; border-radius: 16px; overflow: hidden; position: relative; }
-        .video-js { width: 100%; height: auto; aspect-ratio: 16/9; }
+        video { width: 100%; max-height: 70vh; background: #000; }
         
         .info { background: #1a1a1a; border-radius: 16px; padding: 20px; margin-top: 20px; }
         .info h1 { color: white; font-size: 1.5rem; margin-bottom: 8px; }
@@ -49,18 +48,18 @@
         .description { color: #ccc; line-height: 1.5; margin-top: 15px; padding-top: 15px; border-top: 1px solid #333; }
         .back-btn { display: inline-block; margin-top: 20px; color: #667eea; text-decoration: none; }
         
-        .buffer-status {
+        .instant-badge {
             position: fixed;
             bottom: 20px;
             right: 20px;
-            background: rgba(0,0,0,0.8);
-            padding: 8px 16px;
+            background: rgba(0,0,0,0.7);
+            padding: 6px 12px;
             border-radius: 20px;
-            color: white;
+            color: #28a745;
             font-size: 0.7rem;
+            font-family: monospace;
             z-index: 100;
             display: none;
-            font-family: monospace;
         }
         
         @media (max-width: 768px) {
@@ -81,10 +80,12 @@
     <div class="video-wrapper">
         <video
             id="videoPlayer"
-            class="video-js vjs-big-play-centered"
             controls
-            preload="none"
-            playsinline>
+            autoplay
+            playsinline
+            preload="auto"
+            width="100%">
+            <source src="/stream/{{ film.kod }}" type="video/mp4">
         </video>
     </div>
     
@@ -111,79 +112,32 @@
     </div>
 </div>
 
-<div class="buffer-status" id="bufferStatus">⏳ Yuklanmoqda...</div>
-
-<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-<script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
+<div class="instant-badge" id="instantBadge">⚡ INSTANT PLAY</div>
 
 <script>
     const video = document.getElementById('videoPlayer');
     const downloadBtn = document.getElementById('downloadBtn');
-    const bufferStatus = document.getElementById('bufferStatus');
+    const instantBadge = document.getElementById('instantBadge');
     
-    let player;
-    let hls;
+    // INSTANT PLAY - video darhol boshlansin
+    video.preload = 'auto';
     
-    // HLS manzili
-    const hlsUrl = `/hls/{{ film.kod }}/index.m3u8`;
-    
-    // Video.js bilan HLS o'ynatish
-    if (Hls.isSupported()) {
-        hls = new Hls({
-            enableWorker: true,
-            lowLatencyMode: true,
-            backBufferLength: 60,
-            maxBufferLength: 30,
-            maxMaxBufferLength: 60,
-            startLevel: -1
-        });
-        
-        hls.loadSource(hlsUrl);
-        hls.attachMedia(video);
-        
-        hls.on(Hls.Events.MANIFEST_PARSED, () => {
-            bufferStatus.style.display = 'none';
-            video.play().catch(e => console.log('Play blocked'));
-        });
-        
-        hls.on(Hls.Events.BUFFER_APPENDING, () => {
-            bufferStatus.style.display = 'block';
-            bufferStatus.innerHTML = '⏳ Yuklanmoqda...';
-        });
-        
-        hls.on(Hls.Events.BUFFER_APPENDED, () => {
+    // Video yuklanishi bilan darhol o'ynatish
+    video.addEventListener('canplay', () => {
+        instantBadge.style.display = 'block';
+        video.play().catch(e => console.log('Play blocked'));
+        setTimeout(() => {
+            instantBadge.style.opacity = '0';
             setTimeout(() => {
-                if (video.readyState >= 2) {
-                    bufferStatus.style.display = 'none';
-                }
-            }, 500);
-        });
-        
-        hls.on(Hls.Events.ERROR, (event, data) => {
-            console.error('HLS error:', data);
-            if (data.fatal) {
-                hls.destroy();
-            }
-        });
-    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        // Safari uchun native HLS
-        video.src = hlsUrl;
-        video.addEventListener('loadedmetadata', () => {
-            bufferStatus.style.display = 'none';
-            video.play().catch(e => console.log('Play blocked'));
-        });
-    } else {
-        bufferStatus.innerHTML = '❌ Brauzeringiz HLS ni qo\'llab-quvvatlamaydi';
-    }
-    
-    // Video tugmalari
-    video.addEventListener('waiting', () => {
-        bufferStatus.style.display = 'block';
-        bufferStatus.innerHTML = '⏳ Segment yuklanmoqda...';
+                instantBadge.style.display = 'none';
+                instantBadge.style.opacity = '1';
+            }, 1000);
+        }, 2000);
     });
     
-    video.addEventListener('playing', () => {
-        bufferStatus.style.display = 'none';
+    // Kutish bo'lmasligi uchun
+    video.addEventListener('waiting', () => {
+        console.log('Buffering...');
     });
     
     // Yuklab olish
@@ -213,16 +167,17 @@
             video.currentTime += 10;
         }
         if (e.code === 'KeyF') {
-            if (video.requestFullscreen) {
-                video.requestFullscreen();
-            }
+            video.requestFullscreen();
         }
     });
     
-    // Sahifa yuklanganda
+    // Sahifa yuklanganda darhol boshlash
     window.addEventListener('load', () => {
-        bufferStatus.style.display = 'block';
-        bufferStatus.innerHTML = '🎬 Tayyorlanmoqda...';
+        setTimeout(() => {
+            if (video.paused && video.readyState >= 2) {
+                video.play().catch(e => console.log('Auto play blocked'));
+            }
+        }, 100);
     });
 </script>
 </body>
