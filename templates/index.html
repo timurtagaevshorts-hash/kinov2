@@ -41,22 +41,9 @@
             justify-content: center;
             transition: opacity 0.5s ease, visibility 0.5s ease;
         }
-
-        .preloader.hide {
-            opacity: 0;
-            visibility: hidden;
-        }
-
-        .preloader-content {
-            text-align: center;
-            animation: fadeInUp 0.8s ease;
-        }
-
-        .preloader-logo {
-            font-size: 4rem;
-            animation: bounce 1s ease infinite;
-        }
-
+        .preloader.hide { opacity: 0; visibility: hidden; }
+        .preloader-content { text-align: center; animation: fadeInUp 0.8s ease; }
+        .preloader-logo { font-size: 4rem; animation: bounce 1s ease infinite; }
         .preloader-title {
             font-size: 2rem;
             font-weight: 800;
@@ -65,13 +52,11 @@
             -webkit-text-fill-color: transparent;
             margin: 20px 0 10px;
         }
-
         .preloader-subtitle {
             color: rgba(255,255,255,0.6);
             font-size: 0.9rem;
             margin-bottom: 30px;
         }
-
         .start-btn {
             background: linear-gradient(135deg, #667eea, #764ba2);
             border: none;
@@ -84,21 +69,16 @@
             transition: transform 0.3s, box-shadow 0.3s;
             animation: pulse 1.5s infinite;
         }
-
-        .start-btn:active {
-            transform: scale(0.95);
-        }
+        .start-btn:active { transform: scale(0.95); }
 
         @keyframes fadeInUp {
             from { opacity: 0; transform: translateY(30px); }
             to { opacity: 1; transform: translateY(0); }
         }
-
         @keyframes bounce {
             0%, 100% { transform: translateY(0); }
             50% { transform: translateY(-15px); }
         }
-
         @keyframes pulse {
             0% { box-shadow: 0 0 0 0 rgba(102,126,234,0.7); }
             70% { box-shadow: 0 0 0 15px rgba(102,126,234,0); }
@@ -115,12 +95,7 @@
             z-index: 50;
             animation: fadeInOut 2s infinite;
         }
-
-        .scroll-instruction.hide {
-            opacity: 0;
-            visibility: hidden;
-        }
-
+        .scroll-instruction.hide { opacity: 0; visibility: hidden; }
         .scroll-arrow {
             width: 30px;
             height: 30px;
@@ -130,18 +105,15 @@
             margin: 0 auto 10px;
             animation: arrowBounce 1.5s infinite;
         }
-
         .scroll-text {
             color: rgba(255,255,255,0.8);
             font-size: 0.8rem;
             letter-spacing: 1px;
         }
-
         @keyframes arrowBounce {
-            0%, 100% { transform: rotate(-45deg) translate(0, 0); opacity: 0.3; }
-            50% { transform: rotate(-45deg) translate(10px, 10px); opacity: 1; }
+            0%, 100% { transform: rotate(-45deg) translate(0,0); opacity: 0.3; }
+            50% { transform: rotate(-45deg) translate(10px,10px); opacity: 1; }
         }
-
         @keyframes fadeInOut {
             0%, 100% { opacity: 0.5; }
             50% { opacity: 1; }
@@ -158,10 +130,7 @@
             background: #000;
             -webkit-overflow-scrolling: touch;
         }
-
-        .shorts-container::-webkit-scrollbar {
-            display: none;
-        }
+        .shorts-container::-webkit-scrollbar { display: none; }
 
         .short-video {
             position: relative;
@@ -174,14 +143,15 @@
             justify-content: center;
             overflow: hidden;
         }
-
-        .short-video video {
+        .short-video video,
+        .short-video iframe {
             width: 100%;
             height: 100%;
             object-fit: cover;
             position: absolute;
             top: 0;
             left: 0;
+            border: none;
         }
 
         .short-info {
@@ -194,7 +164,6 @@
             padding: 20px 15px;
             border-radius: 15px;
         }
-
         .short-title {
             color: white;
             font-size: 1rem;
@@ -202,7 +171,6 @@
             margin-bottom: 5px;
             text-shadow: 0 1px 3px rgba(0,0,0,0.5);
         }
-
         .short-desc {
             color: rgba(255,255,255,0.8);
             font-size: 0.8rem;
@@ -218,7 +186,6 @@
             flex-direction: column;
             gap: 20px;
         }
-
         .overlay-btn {
             background: rgba(0,0,0,0.5);
             backdrop-filter: blur(8px);
@@ -233,10 +200,7 @@
             cursor: pointer;
             transition: transform 0.2s;
         }
-
-        .overlay-btn:active {
-            transform: scale(0.9);
-        }
+        .overlay-btn:active { transform: scale(0.9); }
 
         .short-loading {
             position: absolute;
@@ -252,10 +216,7 @@
             z-index: 15;
             display: none;
         }
-
-        @keyframes spin {
-            to { transform: translate(-50%, -50%) rotate(360deg); }
-        }
+        @keyframes spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
 
         .logo {
             position: fixed;
@@ -270,13 +231,11 @@
             font-weight: bold;
             font-size: 0.9rem;
         }
-
         .logo span {
             background: linear-gradient(135deg, #667eea, #764ba2);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
-
         .admin-btn {
             position: fixed;
             top: 15px;
@@ -294,7 +253,6 @@
             text-decoration: none;
             font-size: 1rem;
         }
-
         .no-shorts {
             width: 100%;
             height: 100vh;
@@ -308,7 +266,7 @@
             gap: 15px;
         }
 
-        /* ============ CHIROYLI CODE INPUT BUTTON ============ */
+        /* ============ CODE INPUT BUTTON ============ */
         .code-btn {
             position: fixed;
             bottom: 20px;
@@ -327,17 +285,8 @@
             box-shadow: 0 4px 20px rgba(0,0,0,0.3);
             transition: all 0.3s ease;
         }
-
-        .code-btn:active {
-            transform: scale(0.98);
-        }
-
-        .code-btn-left {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
+        .code-btn:active { transform: scale(0.98); }
+        .code-btn-left { display: flex; align-items: center; gap: 15px; }
         .code-btn-icon {
             width: 48px;
             height: 48px;
@@ -348,39 +297,32 @@
             justify-content: center;
             font-size: 1.3rem;
         }
-
         .code-btn-text h4 {
             color: white;
             font-size: 1rem;
             font-weight: 700;
             margin-bottom: 2px;
         }
-
-        .code-btn-text p {
-            color: rgba(255,255,255,0.7);
-            font-size: 0.7rem;
-        }
-
+        .code-btn-text p { color: rgba(255,255,255,0.7); font-size: 0.7rem; }
         .code-btn-arrow {
             color: white;
             font-size: 1.2rem;
             opacity: 0.8;
             animation: bounceArrow 1.5s infinite;
         }
-
         @keyframes bounceArrow {
             0%, 100% { transform: translateY(0); }
             50% { transform: translateY(5px); }
         }
 
-        /* ============ CHIROYLI MODAL (Raqamli klaviatura) ============ */
+        /* ============ MODAL (Raqamli klaviatura) ============ */
         .modal-overlay {
             position: fixed;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0, 0, 0, 0.96);
+            background: rgba(0,0,0,0.96);
             backdrop-filter: blur(20px);
             z-index: 200;
             display: none;
@@ -388,15 +330,8 @@
             justify-content: center;
             animation: fadeIn 0.3s ease;
         }
-
-        .modal-overlay.show {
-            display: flex;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
+        .modal-overlay.show { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
         .modal-container {
             width: 90%;
@@ -408,7 +343,6 @@
             border: 1px solid rgba(255,255,255,0.2);
             animation: slideUp 0.3s ease;
         }
-
         @keyframes slideUp {
             from { transform: translateY(50px); opacity: 0; }
             to { transform: translateY(0); opacity: 1; }
@@ -419,19 +353,9 @@
             text-align: center;
             background: linear-gradient(135deg, #667eea, #764ba2);
         }
+        .modal-header h3 { color: white; font-size: 1.3rem; margin-bottom: 8px; }
+        .modal-header p { color: rgba(255,255,255,0.8); font-size: 0.8rem; }
 
-        .modal-header h3 {
-            color: white;
-            font-size: 1.3rem;
-            margin-bottom: 8px;
-        }
-
-        .modal-header p {
-            color: rgba(255,255,255,0.8);
-            font-size: 0.8rem;
-        }
-
-        /* Kod ekrani */
         .code-screen {
             background: rgba(0,0,0,0.5);
             margin: 25px 20px;
@@ -440,7 +364,6 @@
             text-align: center;
             border: 2px solid rgba(102,126,234,0.5);
         }
-
         .code-digits {
             font-size: 2.5rem;
             font-weight: 800;
@@ -449,21 +372,18 @@
             font-family: monospace;
             text-shadow: 0 0 10px rgba(102,126,234,0.5);
         }
-
         .code-hint {
             font-size: 0.7rem;
             color: rgba(255,255,255,0.5);
             margin-top: 10px;
         }
 
-        /* Raqamli klaviatura */
         .numpad {
             padding: 0 20px 20px;
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 12px;
         }
-
         .numpad-btn {
             background: rgba(255,255,255,0.1);
             border: 1px solid rgba(255,255,255,0.15);
@@ -476,26 +396,22 @@
             cursor: pointer;
             transition: all 0.2s;
         }
-
         .numpad-btn:active {
             background: #667eea;
             transform: scale(0.95);
         }
-
         .numpad-empty {
             background: transparent;
             border: none;
             pointer-events: none;
         }
 
-        /* Action buttons */
         .action-buttons {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 12px;
             padding: 0 20px 20px;
         }
-
         .action-clear {
             background: rgba(220,53,69,0.8);
             border: none;
@@ -505,14 +421,8 @@
             font-size: 0.9rem;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s;
         }
-
-        .action-clear:active {
-            background: #dc3545;
-            transform: scale(0.95);
-        }
-
+        .action-clear:active { background: #dc3545; transform: scale(0.95); }
         .action-delete {
             background: rgba(255,193,7,0.8);
             border: none;
@@ -522,13 +432,8 @@
             font-size: 0.9rem;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s;
         }
-
-        .action-delete:active {
-            background: #ffc107;
-            transform: scale(0.95);
-        }
+        .action-delete:active { background: #ffc107; transform: scale(0.95); }
 
         .watch-submit {
             width: calc(100% - 40px);
@@ -541,12 +446,8 @@
             font-size: 1rem;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s;
         }
-
-        .watch-submit:active {
-            transform: scale(0.98);
-        }
+        .watch-submit:active { transform: scale(0.98); }
 
         .modal-close {
             position: absolute;
@@ -566,7 +467,6 @@
             backdrop-filter: blur(5px);
         }
 
-        /* Film loading */
         .film-loading {
             position: fixed;
             top: 0;
@@ -584,12 +484,7 @@
             opacity: 0;
             transition: all 0.3s;
         }
-
-        .film-loading.show {
-            visibility: visible;
-            opacity: 1;
-        }
-
+        .film-loading.show { visibility: visible; opacity: 1; }
         .film-loading-spinner {
             width: 50px;
             height: 50px;
@@ -598,21 +493,11 @@
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
         }
-
-        .film-loading-text {
-            color: white;
-            font-size: 1rem;
-        }
+        .film-loading-text { color: white; font-size: 1rem; }
 
         @media (max-width: 480px) {
-            .code-digits {
-                font-size: 1.8rem;
-                letter-spacing: 10px;
-            }
-            .numpad-btn {
-                padding: 14px;
-                font-size: 1.5rem;
-            }
+            .code-digits { font-size: 1.8rem; letter-spacing: 10px; }
+            .numpad-btn { padding: 14px; font-size: 1.5rem; }
         }
     </style>
 </head>
@@ -642,10 +527,11 @@
     {% if shorts %}
         {% for short in shorts %}
         <div class="short-video" data-id="{{ short.id }}" data-index="{{ loop.index0 }}">
-            <video preload="auto" playsinline muted loop>
-                <source src="/stream-shorts/{{ short.id }}" type="video/mp4">
-            </video>
-            <div class="short-loading" id="loading-{{ short.id }}"></div>
+            {% if short.platform == 'youtube' %}
+            <iframe src="{{ short.embed_url }}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+            {% else %}
+            <iframe src="{{ short.embed_url }}" allowfullscreen></iframe>
+            {% endif %}
             <div class="short-info">
                 <div class="short-title">{{ short.sarlavha }}</div>
                 <div class="short-desc">{{ short.tafsilot or 'Qiziqarli video' }}</div>
@@ -661,39 +547,30 @@
     {% endif %}
 </div>
 
-<!-- CHIROYLI KOD KIRITISH TUGMASI -->
+<!-- CODE BUTTON -->
 <div class="code-btn" id="openModalBtn">
     <div class="code-btn-left">
-        <div class="code-btn-icon">
-            <i class="fas fa-film"></i>
-        </div>
+        <div class="code-btn-icon"><i class="fas fa-film"></i></div>
         <div class="code-btn-text">
             <h4>Film kodini kiriting</h4>
             <p>4 xonali kod orqali film tomosha qiling</p>
         </div>
     </div>
-    <div class="code-btn-arrow">
-        <i class="fas fa-chevron-up"></i>
-    </div>
+    <div class="code-btn-arrow"><i class="fas fa-chevron-up"></i></div>
 </div>
 
-<!-- CHIROYLI MODAL (Raqamli klaviatura) -->
+<!-- MODAL -->
 <div class="modal-overlay" id="modalOverlay">
-    <div class="modal-close" id="closeModalBtn">
-        <i class="fas fa-times"></i>
-    </div>
+    <div class="modal-close" id="closeModalBtn"><i class="fas fa-times"></i></div>
     <div class="modal-container">
         <div class="modal-header">
             <h3>🎬 Film kodini kiriting</h3>
             <p>4 xonali kodni kiriting va tomosha qiling</p>
         </div>
-
         <div class="code-screen">
             <div class="code-digits" id="codeDisplay">____</div>
             <div class="code-hint">4 xonali kod</div>
         </div>
-
-        <!-- Raqamli klaviatura -->
         <div class="numpad" id="numpad">
             <div class="numpad-btn" data-value="1">1</div>
             <div class="numpad-btn" data-value="2">2</div>
@@ -708,15 +585,11 @@
             <div class="numpad-btn" data-value="0">0</div>
             <div class="numpad-btn" data-value=""></div>
         </div>
-
         <div class="action-buttons">
             <div class="action-clear" id="clearBtn">O'chirish</div>
             <div class="action-delete" id="backspaceBtn"><i class="fas fa-backspace"></i> O'chir</div>
         </div>
-
-        <button class="watch-submit" id="watchSubmitBtn">
-            <i class="fas fa-play"></i> Tomosha qilish
-        </button>
+        <button class="watch-submit" id="watchSubmitBtn"><i class="fas fa-play"></i> Tomosha qilish</button>
     </div>
 </div>
 
@@ -751,16 +624,22 @@
 
     function playVideo(index) {
         allVideos.forEach((item, i) => {
-            const video = item.querySelector('video');
+            const iframe = item.querySelector('iframe');
             const soundBtn = item.querySelector('.sound-btn');
-            if (video) { video.pause(); video.muted = true; }
+            if (iframe) {
+                // Iframe-ni to'xtatish
+                iframe.src = iframe.src;
+            }
             if (soundBtn) soundBtn.innerHTML = '🔇';
         });
         if (allVideos[index]) {
-            currentVideo = allVideos[index].querySelector('video');
+            const iframe = allVideos[index].querySelector('iframe');
             const soundBtn = allVideos[index].querySelector('.sound-btn');
-            if (currentVideo) { currentVideo.muted = false; currentVideo.play().catch(e => console.log()); }
-            if (soundBtn) soundBtn.innerHTML = '🔊';
+            if (iframe && soundBtn) {
+                // Iframe-ni o'ynatish (ovoz bilan)
+                iframe.src = iframe.src.replace('autoplay=0', 'autoplay=1');
+                soundBtn.innerHTML = '🔊';
+            }
             currentIndex = index;
         }
     }
@@ -781,8 +660,18 @@
     });
 
     function toggleSound(btn) {
-        const video = btn.closest('.short-video').querySelector('video');
-        if (video) { video.muted = !video.muted; btn.innerHTML = video.muted ? '🔇' : '🔊'; }
+        const parent = btn.closest('.short-video');
+        const iframe = parent.querySelector('iframe');
+        if (iframe) {
+            const currentSrc = iframe.src;
+            if (currentSrc.includes('autoplay=1')) {
+                iframe.src = currentSrc.replace('autoplay=1', 'autoplay=0');
+                btn.innerHTML = '🔇';
+            } else {
+                iframe.src = currentSrc.replace('autoplay=0', 'autoplay=1');
+                btn.innerHTML = '🔊';
+            }
+        }
     }
 
     function likeVideo(btn) {
@@ -792,13 +681,12 @@
         setTimeout(() => btn.innerHTML = '❤️', 1000);
     }
 
-    // ============ 4 XONALI KOD KIRITISH (AVTOMATIK QIDIRISH) ============
+    // ============ 4 XONALI KOD KIRITISH ============
     let currentCode = '';
     const maxCodeLength = 4;
     const codeDisplay = document.getElementById('codeDisplay');
     const modalOverlay = document.getElementById('modalOverlay');
     const filmLoading = document.getElementById('filmLoading');
-    const filmKodInput = document.getElementById('filmKod');
     const openModalBtn = document.getElementById('openModalBtn');
     const closeModalBtn = document.getElementById('closeModalBtn');
     const clearBtn = document.getElementById('clearBtn');
@@ -806,89 +694,49 @@
     const watchSubmitBtn = document.getElementById('watchSubmitBtn');
 
     function updateDisplay() {
-        const displayText = currentCode.padEnd(maxCodeLength, '_');
-        codeDisplay.textContent = displayText;
-        
-        // 4 xonali kod to'lganda avtomatik qidirish
-        if (currentCode.length === maxCodeLength) {
-            submitCode();
-        }
+        codeDisplay.textContent = currentCode.padEnd(maxCodeLength, '_');
+        if (currentCode.length === maxCodeLength) { submitCode(); }
     }
 
-    function addDigit(digit) {
-        if (currentCode.length < maxCodeLength) {
-            currentCode += digit;
-            updateDisplay();
-        }
+    function addDigit(d) {
+        if (currentCode.length < maxCodeLength) { currentCode += d; updateDisplay(); }
     }
 
-    function clearCode() {
-        currentCode = '';
-        updateDisplay();
-    }
-
-    function backspace() {
-        currentCode = currentCode.slice(0, -1);
-        updateDisplay();
-    }
+    function clearCode() { currentCode = ''; updateDisplay(); }
+    function backspace() { currentCode = currentCode.slice(0, -1); updateDisplay(); }
 
     function submitCode() {
-        if (currentCode.length !== maxCodeLength) {
-            alert('4 xonali kodni to\'liq kiriting!');
-            return;
-        }
-        
+        if (currentCode.length !== maxCodeLength) { alert('4 xonali kod kiriting!'); return; }
         const kod = currentCode;
         filmLoading.classList.add('show');
-        
         fetch(`/api/check/${kod}`)
-            .then(response => {
-                if (response.ok) return response.json();
-                throw new Error('NOT_FOUND');
-            })
+            .then(res => res.json())
             .then(data => {
-                if (data.exists) {
-                    window.location.href = `/film/${kod}`;
-                } else {
-                    throw new Error('NOT_FOUND');
-                }
+                if (data.exists) { window.location.href = `/film/${kod}`; }
+                else { throw new Error('NOT_FOUND'); }
             })
-            .catch(err => {
+            .catch(() => {
                 filmLoading.classList.remove('show');
                 alert(`"${kod}" kodli film topilmadi!`);
                 clearCode();
             });
     }
 
-    // Numpad tugmalari
     document.querySelectorAll('.numpad-btn').forEach(btn => {
         const val = btn.getAttribute('data-value');
-        if (val && val.trim() !== '') {
-            btn.addEventListener('click', () => addDigit(val));
-        }
+        if (val && val.trim() !== '') { btn.addEventListener('click', () => addDigit(val)); }
     });
-
     clearBtn.addEventListener('click', clearCode);
     backspaceBtn.addEventListener('click', backspace);
     watchSubmitBtn.addEventListener('click', submitCode);
 
-    // Modal ochish/yopish
     openModalBtn.addEventListener('click', () => {
         modalOverlay.classList.add('show');
         clearCode();
     });
-
-    function closeModal() {
-        modalOverlay.classList.remove('show');
-        clearCode();
-    }
-
+    function closeModal() { modalOverlay.classList.remove('show'); clearCode(); }
     closeModalBtn.addEventListener('click', closeModal);
-    modalOverlay.addEventListener('click', (e) => {
-        if (e.target === modalOverlay) {
-            closeModal();
-        }
-    });
+    modalOverlay.addEventListener('click', (e) => { if (e.target === modalOverlay) closeModal(); });
 
     // ============ INITIALIZATION ============
     window.addEventListener('load', () => {
