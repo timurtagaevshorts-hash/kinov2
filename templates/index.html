@@ -3,7 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Kinotop | Shorts</title>
+    <title>Kinotop | Shorts va kinolar</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#667eea">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         * {
             margin: 0;
@@ -14,13 +20,14 @@
 
         body {
             background: #000;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             overflow: hidden;
             height: 100vh;
-            width: 100%;
             position: fixed;
+            width: 100%;
         }
 
-        /* PRELOADER ANIMATSIYA */
+        /* ============ PRELOADER ============ */
         .preloader {
             position: fixed;
             top: 0;
@@ -42,36 +49,36 @@
 
         .preloader-content {
             text-align: center;
-            animation: fadeInUp 1s ease;
+            animation: fadeInUp 0.8s ease;
         }
 
         .preloader-logo {
-            font-size: 5rem;
+            font-size: 4rem;
             animation: bounce 1s ease infinite;
         }
 
         .preloader-title {
-            font-size: 2.5rem;
+            font-size: 2rem;
             font-weight: 800;
-            background: linear-gradient(135deg, #fff 0%, #a8b2ff 100%);
+            background: linear-gradient(135deg, #fff, #a8b2ff);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            margin: 20px 0;
+            margin: 20px 0 10px;
         }
 
         .preloader-subtitle {
-            color: rgba(255,255,255,0.7);
-            font-size: 1rem;
+            color: rgba(255,255,255,0.6);
+            font-size: 0.9rem;
             margin-bottom: 30px;
         }
 
         .start-btn {
             background: linear-gradient(135deg, #667eea, #764ba2);
             border: none;
-            padding: 15px 40px;
+            padding: 14px 40px;
             border-radius: 50px;
             color: white;
-            font-size: 1.1rem;
+            font-size: 1rem;
             font-weight: 600;
             cursor: pointer;
             transition: transform 0.3s, box-shadow 0.3s;
@@ -83,38 +90,64 @@
         }
 
         @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         @keyframes bounce {
-            0%, 100% {
-                transform: translateY(0);
-            }
-            50% {
-                transform: translateY(-15px);
-            }
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-15px); }
         }
 
         @keyframes pulse {
-            0% {
-                box-shadow: 0 0 0 0 rgba(102,126,234,0.7);
-            }
-            70% {
-                box-shadow: 0 0 0 15px rgba(102,126,234,0);
-            }
-            100% {
-                box-shadow: 0 0 0 0 rgba(102,126,234,0);
-            }
+            0% { box-shadow: 0 0 0 0 rgba(102,126,234,0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(102,126,234,0); }
+            100% { box-shadow: 0 0 0 0 rgba(102,126,234,0); }
         }
 
-        /* SHORTS CONTAINER */
+        /* ============ SCROLL INSTRUCTION ============ */
+        .scroll-instruction {
+            position: absolute;
+            bottom: 180px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            z-index: 50;
+            animation: fadeInOut 2s infinite;
+        }
+
+        .scroll-instruction.hide {
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        .scroll-arrow {
+            width: 30px;
+            height: 30px;
+            border-left: 2px solid white;
+            border-bottom: 2px solid white;
+            transform: rotate(-45deg);
+            margin: 0 auto 10px;
+            animation: arrowBounce 1.5s infinite;
+        }
+
+        .scroll-text {
+            color: rgba(255,255,255,0.8);
+            font-size: 0.8rem;
+            letter-spacing: 1px;
+        }
+
+        @keyframes arrowBounce {
+            0%, 100% { transform: rotate(-45deg) translate(0, 0); opacity: 0.3; }
+            50% { transform: rotate(-45deg) translate(10px, 10px); opacity: 1; }
+        }
+
+        @keyframes fadeInOut {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        /* ============ SHORTS CONTAINER ============ */
         .shorts-container {
             position: relative;
             width: 100%;
@@ -124,7 +157,6 @@
             scroll-behavior: smooth;
             background: #000;
             -webkit-overflow-scrolling: touch;
-            visibility: visible;
         }
 
         .shorts-container::-webkit-scrollbar {
@@ -146,8 +178,10 @@
         .short-video video {
             width: 100%;
             height: 100%;
-            object-fit: contain;
-            background: #000;
+            object-fit: cover;
+            position: absolute;
+            top: 0;
+            left: 0;
         }
 
         .short-info {
@@ -156,7 +190,7 @@
             left: 16px;
             right: 80px;
             z-index: 10;
-            background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%);
+            background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
             padding: 20px 15px;
             border-radius: 15px;
         }
@@ -164,15 +198,15 @@
         .short-title {
             color: white;
             font-size: 1rem;
-            font-weight: 600;
+            font-weight: 700;
             margin-bottom: 5px;
-            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+            text-shadow: 0 1px 3px rgba(0,0,0,0.5);
         }
 
         .short-desc {
             color: rgba(255,255,255,0.8);
             font-size: 0.8rem;
-            text-shadow: 0 1px 1px rgba(0,0,0,0.5);
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
         }
 
         .overlay-buttons {
@@ -204,7 +238,6 @@
             transform: scale(0.9);
         }
 
-        /* Loading indicator for shorts */
         .short-loading {
             position: absolute;
             top: 50%;
@@ -224,192 +257,7 @@
             to { transform: translate(-50%, -50%) rotate(360deg); }
         }
 
-        /* FLOATING CODE INPUT */
-        .code-bar {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-            border-top: 2px solid #667eea;
-            z-index: 100;
-            transform: translateY(0);
-            transition: transform 0.3s ease;
-        }
-
-        .code-bar.hidden {
-            transform: translateY(100%);
-        }
-
-        .code-button {
-            width: 100%;
-            padding: 16px 20px;
-            background: transparent;
-            border: none;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            cursor: pointer;
-        }
-
-        .code-button-left {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .code-icon {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            width: 44px;
-            height: 44px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.3rem;
-        }
-
-        .code-text h4 {
-            color: white;
-            font-size: 0.95rem;
-            font-weight: 600;
-            margin-bottom: 2px;
-        }
-
-        .code-text p {
-            color: rgba(255,255,255,0.5);
-            font-size: 0.7rem;
-        }
-
-        .code-arrow {
-            color: rgba(255,255,255,0.5);
-            font-size: 1.2rem;
-        }
-
-        /* MODAL OVERLAY */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.95);
-            z-index: 200;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            backdrop-filter: blur(10px);
-        }
-
-        .modal-overlay.show {
-            display: flex;
-        }
-
-        .modal-container {
-            width: 90%;
-            max-width: 400px;
-            background: #1a1a2e;
-            border-radius: 20px;
-            overflow: hidden;
-            border: 1px solid rgba(102,126,234,0.3);
-        }
-
-        .modal-header {
-            padding: 20px;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            text-align: center;
-        }
-
-        .modal-header h3 {
-            color: white;
-            font-size: 1.3rem;
-            margin-bottom: 5px;
-        }
-
-        .modal-body {
-            padding: 25px 20px;
-        }
-
-        .code-display {
-            background: #0f0f1a;
-            border-radius: 12px;
-            padding: 15px;
-            text-align: center;
-            margin-bottom: 20px;
-            border: 1px solid rgba(102,126,234,0.3);
-        }
-
-        .code-display span {
-            font-size: 1.8rem;
-            letter-spacing: 4px;
-            color: white;
-            font-weight: 600;
-            font-family: monospace;
-        }
-
-        .numpad {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
-            margin-bottom: 20px;
-        }
-
-        .numpad-btn {
-            background: #0f0f1a;
-            border: 1px solid rgba(102,126,234,0.3);
-            border-radius: 12px;
-            padding: 18px;
-            font-size: 1.5rem;
-            font-weight: 600;
-            color: white;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .numpad-btn:active {
-            background: #667eea;
-            transform: scale(0.95);
-        }
-
-        .numpad-actions {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            margin-bottom: 15px;
-        }
-
-        .action-btn {
-            padding: 14px;
-            border-radius: 12px;
-            font-size: 1rem;
-            font-weight: 600;
-            text-align: center;
-            cursor: pointer;
-        }
-
-        .action-btn.clear {
-            background: #dc3545;
-            color: white;
-        }
-
-        .action-btn.backspace {
-            background: #ffc107;
-            color: #333;
-        }
-
-        .watch-submit {
-            width: 100%;
-            padding: 16px;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            border: none;
-            border-radius: 12px;
-            color: white;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-        }
-
+        /* Logo and admin */
         .logo {
             position: fixed;
             top: 15px;
@@ -421,7 +269,7 @@
             border-radius: 30px;
             color: white;
             font-weight: bold;
-            font-size: 1rem;
+            font-size: 0.9rem;
         }
 
         .logo span {
@@ -456,35 +304,276 @@
             justify-content: center;
             color: white;
             text-align: center;
-            background: linear-gradient(135deg, #0f0c29, #302b63);
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
             flex-direction: column;
             gap: 15px;
+        }
+
+        .no-shorts p {
+            font-size: 1rem;
+            opacity: 0.7;
+        }
+
+        /* ============ CODE BUTTON (PASTDA) ============ */
+        .code-button-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            padding: 12px 20px 20px;
+            background: linear-gradient(to top, rgba(0,0,0,0.95), transparent);
+        }
+
+        .code-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none;
+            border-radius: 60px;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            transition: transform 0.2s;
+            box-shadow: 0 4px 15px rgba(102,126,234,0.3);
+        }
+
+        .code-btn:active {
+            transform: scale(0.98);
+        }
+
+        .code-btn-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .code-btn-icon {
+            width: 48px;
+            height: 48px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+        }
+
+        .code-btn-text {
+            text-align: left;
+        }
+
+        .code-btn-text h4 {
+            color: white;
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 2px;
+        }
+
+        .code-btn-text p {
+            color: rgba(255,255,255,0.7);
+            font-size: 0.75rem;
+        }
+
+        .code-btn-arrow {
+            color: white;
+            font-size: 1.2rem;
+            opacity: 0.8;
+        }
+
+        /* ============ MODAL (KOD KIRITISH) ============ */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.95);
+            z-index: 200;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(10px);
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal-container {
+            width: 90%;
+            max-width: 400px;
+            background: #1a1a2e;
+            border-radius: 28px;
+            overflow: hidden;
+            border: 1px solid rgba(102,126,234,0.3);
+        }
+
+        .modal-header {
+            padding: 25px 20px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            text-align: center;
+        }
+
+        .modal-header h3 {
+            color: white;
+            font-size: 1.3rem;
+            margin-bottom: 5px;
+        }
+
+        .modal-header p {
+            color: rgba(255,255,255,0.8);
+            font-size: 0.8rem;
+        }
+
+        .modal-body {
+            padding: 25px 20px;
+        }
+
+        .code-input-group {
+            margin-bottom: 25px;
+        }
+
+        .code-input-label {
+            color: rgba(255,255,255,0.6);
+            font-size: 0.8rem;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .code-input-field {
+            width: 100%;
+            padding: 16px;
+            background: #0f0f1a;
+            border: 2px solid rgba(102,126,234,0.3);
+            border-radius: 16px;
+            color: white;
+            font-size: 1.2rem;
+            text-align: center;
+            letter-spacing: 4px;
+            font-family: monospace;
+            outline: none;
+            transition: all 0.3s;
+        }
+
+        .code-input-field:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 10px rgba(102,126,234,0.3);
+        }
+
+        .code-input-field::placeholder {
+            color: rgba(255,255,255,0.3);
+            letter-spacing: 0;
+        }
+
+        .watch-submit {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none;
+            border-radius: 50px;
+            color: white;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .watch-submit:active {
+            transform: scale(0.98);
+        }
+
+        .film-loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.95);
+            z-index: 300;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 20px;
+            visibility: hidden;
+            opacity: 0;
+            transition: all 0.3s;
+        }
+
+        .film-loading.show {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .film-loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(102,126,234,0.3);
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        .film-loading-text {
+            color: white;
+            font-size: 1rem;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.2);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.2rem;
+            cursor: pointer;
+            z-index: 210;
+            backdrop-filter: blur(5px);
+        }
+
+        @media (max-width: 768px) {
+            .code-btn { padding: 12px 16px; }
+            .code-btn-icon { width: 40px; height: 40px; font-size: 1rem; }
+            .code-btn-text h4 { font-size: 0.85rem; }
+            .code-btn-text p { font-size: 0.65rem; }
         }
     </style>
 </head>
 <body>
 
-<!-- PRELOADER ANIMATSIYA -->
+<!-- PRELOADER -->
 <div class="preloader" id="preloader">
     <div class="preloader-content">
         <div class="preloader-logo">🎬</div>
         <div class="preloader-title">KINOTOP</div>
-        <div class="preloader-subtitle">Eng yangi va qiziqarli kinolar</div>
-        <button class="start-btn" id="startBtn">🎥 Videoni ko'rishni boshlash</button>
+        <div class="preloader-subtitle">Eng yangi va qiziqarli shortslar</div>
+        <button class="start-btn" id="startBtn">🎥 Kirish</button>
     </div>
 </div>
 
-<div class="logo">
-    <span>🎬 KINOTOP</span>
+<!-- SCROLL INSTRUCTION -->
+<div class="scroll-instruction" id="scrollInstruction">
+    <div class="scroll-arrow"></div>
+    <div class="scroll-text">👆 Shortslarni ko'rish uchun yuqoriga suring</div>
 </div>
 
+<div class="logo"><span>🎬 KINOTOP</span></div>
 <a href="/admin" class="admin-btn">🔐</a>
 
+<!-- SHORTS CONTAINER -->
 <div class="shorts-container" id="shortsContainer" style="display: none;">
     {% if shorts %}
         {% for short in shorts %}
         <div class="short-video" data-id="{{ short.id }}" data-index="{{ loop.index0 }}">
-            <video preload="auto" playsinline webkit-playsinline muted loop>
+            <video preload="auto" playsinline muted loop>
                 <source src="/stream-shorts/{{ short.id }}" type="video/mp4">
             </video>
             <div class="short-loading" id="loading-{{ short.id }}"></div>
@@ -493,353 +582,207 @@
                 <div class="short-desc">{{ short.tafsilot or 'Qiziqarli video' }}</div>
             </div>
             <div class="overlay-buttons">
-                <div class="overlay-btn sound-btn" data-id="{{ short.id }}">
-                    🔇
-                </div>
-                <div class="overlay-btn like-btn">
-                    ❤️
-                </div>
+                <div class="overlay-btn sound-btn" data-id="{{ short.id }}">🔇</div>
+                <div class="overlay-btn like-btn">❤️</div>
             </div>
         </div>
         {% endfor %}
     {% else %}
-        <div class="no-shorts">
-            <p>📱 Hozircha shorts videolar yo'q</p>
-        </div>
+        <div class="no-shorts"><p>📱 Hozircha shortslar yo'q</p></div>
     {% endif %}
 </div>
 
-<div class="code-bar" id="codeBar">
-    <button class="code-button" id="openModalBtn">
-        <div class="code-button-left">
-            <div class="code-icon">🎬</div>
-            <div class="code-text">
-                <h4>Film kodini kiriting</h4>
-                <p>To'liq sifatda tomosha qiling</p>
+<!-- CODE BUTTON -->
+<div class="code-button-container" id="codeButtonContainer" style="display: none;">
+    <button class="code-btn" id="openModalBtn">
+        <div class="code-btn-left">
+            <div class="code-btn-icon"><i class="fas fa-film"></i></div>
+            <div class="code-btn-text">
+                <h4>🎬 Film kodini kiriting</h4>
+                <p>4 xonali kod orqali film tomosha qiling</p>
             </div>
         </div>
-        <div class="code-arrow">▲</div>
+        <div class="code-btn-arrow"><i class="fas fa-chevron-up"></i></div>
     </button>
 </div>
 
+<!-- MODAL -->
 <div class="modal-overlay" id="modalOverlay">
-    <div class="modal-close" id="closeModalBtn">✕</div>
+    <div class="modal-close" id="closeModalBtn"><i class="fas fa-times"></i></div>
     <div class="modal-container">
         <div class="modal-header">
             <h3>🎬 Film kodini kiriting</h3>
-            <p>Kodni raqamlar orqali yozing</p>
+            <p>4 xonali kodni kiriting va tomosha qiling</p>
         </div>
         <div class="modal-body">
-            <div class="code-display">
-                <span id="codeDisplay">______</span>
+            <div class="code-input-group">
+                <label class="code-input-label">Film kodi</label>
+                <input type="text" class="code-input-field" id="filmKod" placeholder="Masalan: 1234" maxlength="4" inputmode="numeric" pattern="[0-9]*">
             </div>
-            <div class="numpad" id="numpad">
-                <div class="numpad-btn" data-value="1">1</div>
-                <div class="numpad-btn" data-value="2">2</div>
-                <div class="numpad-btn" data-value="3">3</div>
-                <div class="numpad-btn" data-value="4">4</div>
-                <div class="numpad-btn" data-value="5">5</div>
-                <div class="numpad-btn" data-value="6">6</div>
-                <div class="numpad-btn" data-value="7">7</div>
-                <div class="numpad-btn" data-value="8">8</div>
-                <div class="numpad-btn" data-value="9">9</div>
-                <div class="numpad-btn" data-value=""></div>
-                <div class="numpad-btn" data-value="0">0</div>
-                <div class="numpad-btn" data-value=""></div>
-            </div>
-            <div class="numpad-actions">
-                <div class="action-btn clear" id="clearBtn">O'chirish</div>
-                <div class="action-btn backspace" id="backspaceBtn">⌫</div>
-            </div>
-            <button class="watch-submit" id="watchSubmitBtn">🎬 Tomosha qilish</button>
+            <button class="watch-submit" id="watchSubmitBtn"><i class="fas fa-play"></i> Tomosha qilish</button>
         </div>
     </div>
 </div>
 
+<div class="film-loading" id="filmLoading">
+    <div class="film-loading-spinner"></div>
+    <div class="film-loading-text">🎬 Kino qidirilmoqda...</div>
+</div>
+
 <script>
-    // ============ PRELOADER VA BARCHA SHORTSLARNI OLDINDAN YUKLASH ============
+    // ============ PRELOADER ============
     const preloader = document.getElementById('preloader');
     const startBtn = document.getElementById('startBtn');
     const shortsContainer = document.getElementById('shortsContainer');
+    const scrollInstruction = document.getElementById('scrollInstruction');
+    const codeButtonContainer = document.getElementById('codeButtonContainer');
     let allVideos = [];
-    let videosLoaded = false;
-    let loadingComplete = false;
 
-    // Barcha shortslarni oldindan yuklash (fonda)
-    function preloadAllShortsInBackground() {
-        const videoElements = document.querySelectorAll('.short-video video');
-        allVideos = Array.from(videoElements);
-        
-        allVideos.forEach((video, index) => {
-            // Yuklanishni boshlash
-            video.load();
-            
-            // Yuklanish holatini tekshirish
-            video.addEventListener('canplaythrough', () => {
-                console.log(`Video ${index + 1} tayyor`);
-            });
-            
-            // Xatolik bo'lsa ham davom et
-            video.addEventListener('error', () => {
-                console.log(`Video ${index + 1} yuklanmadi, lekin davom`);
-            });
-        });
-        
-        loadingComplete = true;
-    }
+    startBtn.addEventListener('click', () => {
+        preloader.classList.add('hide');
+        shortsContainer.style.display = 'block';
+        codeButtonContainer.style.display = 'block';
+        getAllVideos();
+        setTimeout(() => { scrollInstruction.classList.add('hide'); }, 4000);
+        setTimeout(() => { if (allVideos.length > 0) playVideo(0); }, 300);
+    });
 
-    // Birinchi videoni tayyorlash
-    function prepareFirstVideo() {
-        if (allVideos.length > 0) {
-            const firstVideo = allVideos[0];
-            firstVideo.muted = false;
-            firstVideo.play().catch(e => console.log('Auto play blocked'));
-            
-            // Sound button yangilash
-            const firstSoundBtn = document.querySelector('.sound-btn');
-            if (firstSoundBtn) firstSoundBtn.innerHTML = '🔊';
-        }
-    }
-
-    // Shorts player funksiyalari
+    // ============ SHORTS PLAYER ============
     let currentIndex = 0;
     let currentVideo = null;
 
-    function playCurrentVideoOnly() {
-        allVideos.forEach((video) => {
-            const parent = video.closest('.short-video');
-            const soundBtn = parent?.querySelector('.sound-btn');
-            video.pause();
-            video.muted = true;
+    function getAllVideos() {
+        allVideos = Array.from(document.querySelectorAll('.short-video'));
+    }
+
+    function playVideo(index) {
+        allVideos.forEach((item, i) => {
+            const video = item.querySelector('video');
+            const soundBtn = item.querySelector('.sound-btn');
+            if (video) { video.pause(); video.muted = true; }
             if (soundBtn) soundBtn.innerHTML = '🔇';
         });
-        
-        if (allVideos[currentIndex]) {
-            currentVideo = allVideos[currentIndex];
-            const parent = currentVideo.closest('.short-video');
-            const soundBtn = parent?.querySelector('.sound-btn');
-            
-            currentVideo.muted = false;
-            currentVideo.play().catch(e => console.log('Play error'));
+        if (allVideos[index]) {
+            currentVideo = allVideos[index].querySelector('video');
+            const soundBtn = allVideos[index].querySelector('.sound-btn');
+            if (currentVideo) { currentVideo.muted = false; currentVideo.play().catch(e => console.log()); }
             if (soundBtn) soundBtn.innerHTML = '🔊';
+            currentIndex = index;
         }
     }
 
     function getCurrentIndex() {
-        const scrollTop = shortsContainer.scrollTop;
-        const itemHeight = window.innerHeight;
-        return Math.round(scrollTop / itemHeight);
+        return Math.round(shortsContainer.scrollTop / window.innerHeight);
     }
 
-    // Scroll event
     let scrollTimeout;
     shortsContainer.addEventListener('scroll', () => {
         if (scrollTimeout) clearTimeout(scrollTimeout);
         scrollTimeout = setTimeout(() => {
             const newIndex = getCurrentIndex();
             if (newIndex !== currentIndex && newIndex >= 0 && newIndex < allVideos.length) {
-                currentIndex = newIndex;
-                playCurrentVideoOnly();
+                playVideo(newIndex);
+                if (!scrollInstruction.classList.contains('hide')) scrollInstruction.classList.add('hide');
             }
         }, 50);
     });
 
-    // Touch event
     let touchStartY = 0;
-    shortsContainer.addEventListener('touchstart', (e) => {
-        touchStartY = e.touches[0].clientY;
-    });
-    
-    shortsContainer.addEventListener('touchend', (e) => {
-        const touchEndY = e.changedTouches[0].clientY;
-        const diff = touchStartY - touchEndY;
-        if (Math.abs(diff) > 30) {
-            setTimeout(() => {
-                const newIndex = getCurrentIndex();
-                if (newIndex !== currentIndex) {
-                    currentIndex = newIndex;
-                    playCurrentVideoOnly();
-                }
-            }, 100);
+    shortsContainer.addEventListener('touchstart', (e) => { touchStartY = e.touches[0].clientY; });
+    shortsContainer.addEventListener('touchmove', (e) => {
+        if (touchStartY - e.touches[0].clientY > 30 && !scrollInstruction.classList.contains('hide')) {
+            scrollInstruction.classList.add('hide');
         }
     });
 
-    // Video tugaganda qayta ijro (avtomatik otmasin)
-    function setupVideoLoop() {
-        allVideos.forEach((video, idx) => {
-            video.addEventListener('ended', () => {
-                if (idx === currentIndex) {
-                    video.currentTime = 0;
-                    video.play().catch(e => console.log('Replay error'));
-                }
-            });
-        });
+    function toggleSound(btn) {
+        const video = btn.closest('.short-video').querySelector('video');
+        if (video) { video.muted = !video.muted; btn.innerHTML = video.muted ? '🔇' : '🔊'; }
     }
 
-    // Ovozni yoqish/o'chirish
-    function toggleSound(btn, videoId) {
-        const parent = btn.closest('.short-video');
-        const video = parent.querySelector('video');
-        if (video) {
-            if (video.muted) {
-                video.muted = false;
-                btn.innerHTML = '🔊';
-            } else {
-                video.muted = true;
-                btn.innerHTML = '🔇';
-            }
-        }
-    }
-
-    // Like animatsiyasi
     function likeVideo(btn) {
         btn.style.transform = 'scale(1.2)';
-        setTimeout(() => {
-            btn.style.transform = 'scale(1)';
-        }, 200);
+        setTimeout(() => btn.style.transform = 'scale(1)', 200);
         btn.innerHTML = '❤️';
-        setTimeout(() => {
-            btn.innerHTML = '❤️';
-        }, 1000);
+        setTimeout(() => btn.innerHTML = '❤️', 1000);
     }
 
-    // ============ START TUGMASI BOSILGANDA ============
-    startBtn.addEventListener('click', () => {
-        // Preloader ni yashirish
-        preloader.classList.add('hide');
-        
-        // Shorts container ni ko'rsatish
-        shortsContainer.style.display = 'block';
-        
-        // Birinchi videoni o'ynatish
-        setTimeout(() => {
-            if (allVideos.length > 0) {
-                prepareFirstVideo();
-                setupVideoLoop();
-            }
-        }, 100);
-    });
-
-    // ============ KOD KIRITISH FUNKSIYALARI ============
-    let currentCode = '';
-    const maxCodeLength = 6;
-    const codeDisplay = document.getElementById('codeDisplay');
+    // ============ KOD KIRITISH ============
     const modalOverlay = document.getElementById('modalOverlay');
-    const codeBar = document.getElementById('codeBar');
+    const filmLoading = document.getElementById('filmLoading');
+    const filmKodInput = document.getElementById('filmKod');
+    const watchSubmitBtn = document.getElementById('watchSubmitBtn');
     const openModalBtn = document.getElementById('openModalBtn');
     const closeModalBtn = document.getElementById('closeModalBtn');
-    const clearBtn = document.getElementById('clearBtn');
-    const backspaceBtn = document.getElementById('backspaceBtn');
-    const watchSubmitBtn = document.getElementById('watchSubmitBtn');
-
-    function updateDisplay() {
-        const displayText = currentCode.padEnd(maxCodeLength, '_');
-        codeDisplay.textContent = displayText;
-    }
-
-    function addDigit(digit) {
-        if (currentCode.length < maxCodeLength) {
-            currentCode += digit;
-            updateDisplay();
-        }
-    }
-
-    function clearCode() {
-        currentCode = '';
-        updateDisplay();
-    }
-
-    function backspace() {
-        currentCode = currentCode.slice(0, -1);
-        updateDisplay();
-    }
 
     function submitCode() {
-        if (currentCode.length === 0) {
+        let kod = filmKodInput.value.trim();
+        if (kod.length === 0) {
             alert('Iltimos, film kodini kiriting!');
             return;
         }
-        const kod = currentCode.toUpperCase();
-        window.location.href = `/film/${kod}`;
+        kod = kod.toUpperCase();
+        filmLoading.classList.add('show');
+        
+        fetch(`/api/check/${kod}`)
+            .then(response => {
+                if (response.ok) return response.json();
+                else throw new Error('NOT_FOUND');
+            })
+            .then(data => {
+                if (data.exists) window.location.href = `/film/${kod}`;
+                else throw new Error('NOT_FOUND');
+            })
+            .catch(err => {
+                filmLoading.classList.remove('show');
+                if (err.message === 'NOT_FOUND') alert(`"${kod}" kodli film topilmadi!`);
+                else alert('Xatolik yuz berdi!');
+                filmKodInput.value = '';
+                filmKodInput.focus();
+            });
     }
-
-    document.querySelectorAll('.numpad-btn').forEach(btn => {
-        const value = btn.getAttribute('data-value');
-        if (value && value.trim() !== '') {
-            btn.addEventListener('click', () => addDigit(value));
-        }
-    });
-
-    clearBtn.addEventListener('click', clearCode);
-    backspaceBtn.addEventListener('click', backspace);
-    watchSubmitBtn.addEventListener('click', submitCode);
 
     openModalBtn.addEventListener('click', () => {
         modalOverlay.classList.add('show');
-        codeBar.classList.add('hidden');
+        filmKodInput.value = '';
+        setTimeout(() => filmKodInput.focus(), 300);
     });
-
-    function closeModal() {
+    closeModalBtn.addEventListener('click', () => {
         modalOverlay.classList.remove('show');
-        codeBar.classList.remove('hidden');
-        clearCode();
-    }
-
-    closeModalBtn.addEventListener('click', closeModal);
-    
+        filmKodInput.value = '';
+    });
     modalOverlay.addEventListener('click', (e) => {
         if (e.target === modalOverlay) {
-            closeModal();
+            modalOverlay.classList.remove('show');
+            filmKodInput.value = '';
         }
     });
+    watchSubmitBtn.addEventListener('click', submitCode);
+    filmKodInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') submitCode(); });
 
-    document.addEventListener('keydown', (e) => {
-        if (!modalOverlay.classList.contains('show')) return;
-        
-        if (e.key >= '0' && e.key <= '9') {
-            addDigit(e.key);
-        } else if (e.key === 'Backspace') {
-            backspace();
-        } else if (e.key === 'Delete') {
-            clearCode();
-        } else if (e.key === 'Enter') {
-            submitCode();
-        } else if (e.key === 'Escape') {
-            closeModal();
-        }
-    });
+    // ============ SERVICE WORKER ============
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/static/sw.js').catch(err => console.log('SW error:', err));
+        });
+    }
 
-    // ============ SAHIFA YUKLANGANDA ============
+    // ============ INITIALIZATION ============
     window.addEventListener('load', () => {
-        // Barcha shortslarni fonda yuklash
-        preloadAllShortsInBackground();
-        
-        // Sound va like tugmalariga event qo'shish
-        setTimeout(() => {
-            document.querySelectorAll('.sound-btn').forEach(btn => {
-                const videoId = btn.getAttribute('data-id');
-                btn.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    toggleSound(this, videoId);
-                });
-            });
-            
-            document.querySelectorAll('.like-btn').forEach(btn => {
-                btn.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    likeVideo(this);
-                });
-            });
-        }, 500);
+        document.querySelectorAll('.sound-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => { e.stopPropagation(); toggleSound(btn); });
+        });
+        document.querySelectorAll('.like-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => { e.stopPropagation(); likeVideo(btn); });
+        });
     });
 
-    // Backgroundda yuklash davom etsin
     document.addEventListener('visibilitychange', () => {
-        if (!document.hidden && currentVideo && currentVideo.paused) {
+        if (document.hidden && currentVideo) currentVideo.pause();
+        else if (!document.hidden && currentVideo && currentVideo.paused && shortsContainer.style.display === 'block') {
             currentVideo.play().catch(e => console.log());
         }
     });
 </script>
-
 </body>
 </html>
