@@ -2,63 +2,548 @@
 <html lang="uz">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>{{ short.sarlavha }} | Kinotop Shorts</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
-        body {
+        * {
             margin: 0;
             padding: 0;
-            background: black;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
         }
-        .short-container {
-            max-width: 400px;
+
+        body {
+            background: #000;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            position: fixed;
+            width: 100%;
+        }
+
+        /* Shorts Container - Full Screen */
+        .shorts-container {
+            position: relative;
             width: 100%;
             height: 100vh;
+            background: #000;
             display: flex;
-            flex-direction: column;
+            align-items: center;
             justify-content: center;
-            background: black;
         }
+
+        /* Video Player */
+        .video-wrapper {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
         video {
             width: 100%;
-            height: 80vh;
+            height: 100%;
             object-fit: contain;
+            background: #000;
         }
-        .info {
-            color: white;
-            padding: 15px;
-            text-align: center;
+
+        /* Loading Overlay */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 15px;
+            z-index: 20;
+            transition: opacity 0.3s;
         }
-        .close-btn {
-            position: fixed;
-            top: 20px;
-            right: 20px;
+
+        .loading-overlay.hide {
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(102, 126, 234, 0.3);
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        .loading-text {
             color: white;
-            font-size: 30px;
-            text-decoration: none;
-            background: rgba(0,0,0,0.5);
-            width: 40px;
-            height: 40px;
+            font-size: 0.9rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Info Overlay */
+        .info-overlay {
+            position: absolute;
+            bottom: 100px;
+            left: 16px;
+            right: 80px;
+            z-index: 10;
+            background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+            padding: 20px 15px;
+            border-radius: 15px;
+        }
+
+        .short-title {
+            color: white;
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+        }
+
+        .short-desc {
+            color: rgba(255,255,255,0.8);
+            font-size: 0.85rem;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+        }
+
+        /* Right Side Buttons */
+        .action-buttons {
+            position: absolute;
+            right: 12px;
+            bottom: 100px;
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .action-btn {
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(8px);
+            width: 44px;
+            height: 44px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
+            color: white;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .action-btn:active {
+            transform: scale(0.9);
+        }
+
+        /* Sound Button */
+        .sound-btn {
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(8px);
+        }
+
+        /* Like Button Animation */
+        .like-btn.liked {
+            animation: likeAnimation 0.4s ease;
+            color: #ff4757;
+        }
+
+        @keyframes likeAnimation {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.3); }
+            100% { transform: scale(1); }
+        }
+
+        /* Download Button */
+        .download-btn {
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(8px);
+        }
+
+        /* Back Button */
+        .back-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 30;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(8px);
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            text-decoration: none;
+            font-size: 1.2rem;
+            transition: transform 0.2s;
+        }
+
+        .back-btn:active {
+            transform: scale(0.9);
+        }
+
+        /* Progress Bar */
+        .progress-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.2);
+            z-index: 15;
+        }
+
+        .progress-filled {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.1s linear;
+        }
+
+        /* Buffer Status */
+        .buffer-status {
+            position: fixed;
+            bottom: 25px;
+            right: 25px;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            padding: 8px 16px;
+            border-radius: 30px;
+            color: white;
+            font-size: 0.75rem;
+            z-index: 100;
+            display: none;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .buffer-status.show {
+            display: flex;
+        }
+
+        .buffer-spinner {
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+
+        /* Keyboard Shortcuts Hint */
+        .shortcuts-hint {
+            position: fixed;
+            bottom: 25px;
+            left: 25px;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px);
+            padding: 6px 12px;
+            border-radius: 20px;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.65rem;
+            z-index: 100;
+            display: flex;
+            gap: 12px;
+        }
+
+        .shortcuts-hint span {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        @media (max-width: 768px) {
+            .shortcuts-hint {
+                display: none;
+            }
+            .action-btn {
+                width: 38px;
+                height: 38px;
+                font-size: 1rem;
+            }
+            .info-overlay {
+                bottom: 80px;
+                right: 65px;
+            }
+            .short-title {
+                font-size: 0.9rem;
+            }
+            .short-desc {
+                font-size: 0.75rem;
+            }
         }
     </style>
 </head>
 <body>
-    <a href="/" class="close-btn">✕</a>
-    <div class="short-container">
-        <video controls autoplay loop>
-            <source src="/static/uploads/shorts/{{ short.fayl_nomi }}" type="video/mp4">
+
+<div class="shorts-container">
+    <!-- Back Button -->
+    <a href="/" class="back-btn">
+        <i class="fas fa-arrow-left"></i>
+    </a>
+
+    <!-- Video Wrapper -->
+    <div class="video-wrapper">
+        <!-- Loading Overlay -->
+        <div class="loading-overlay" id="loadingOverlay">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">Video yuklanmoqda...</div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="progress-bar">
+            <div class="progress-filled" id="progressFilled"></div>
+        </div>
+
+        <!-- Video Player -->
+        <video id="videoPlayer" playsinline webkit-playsinline loop width="100%" height="100%">
+            <source src="/stream-shorts/{{ short.id }}" type="video/mp4">
         </video>
-        <div class="info">
-            <h3>{{ short.sarlavha }}</h3>
-            <p>{{ short.tafsilot or '' }}</p>
+
+        <!-- Info Overlay -->
+        <div class="info-overlay">
+            <div class="short-title">{{ short.sarlavha }}</div>
+            <div class="short-desc">{{ short.tafsilot or 'Qiziqarli video' }}</div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="action-buttons">
+            <!-- Sound Button -->
+            <div class="action-btn sound-btn" id="soundBtn">
+                <i class="fas fa-volume-mute"></i>
+            </div>
+            <!-- Like Button -->
+            <div class="action-btn like-btn" id="likeBtn">
+                <i class="far fa-heart"></i>
+            </div>
+            <!-- Download Button -->
+            <div class="action-btn download-btn" id="downloadBtn">
+                <i class="fas fa-download"></i>
+            </div>
         </div>
     </div>
+</div>
+
+<!-- Buffer Status -->
+<div class="buffer-status" id="bufferStatus">
+    <div class="buffer-spinner"></div>
+    <span id="bufferText">Yuklanmoqda...</span>
+</div>
+
+<!-- Keyboard Shortcuts Hint -->
+<div class="shortcuts-hint">
+    <span><i class="fas fa-space-shuttle"></i> Bo'sh joy</span>
+    <span><i class="fas fa-arrow-left"></i> 10s orqaga</span>
+    <span><i class="fas fa-arrow-right"></i> 10s oldinga</span>
+</div>
+
+<script>
+    // ============ DOM Elements ============
+    const video = document.getElementById('videoPlayer');
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const progressFilled = document.getElementById('progressFilled');
+    const bufferStatus = document.getElementById('bufferStatus');
+    const bufferText = document.getElementById('bufferText');
+    const soundBtn = document.getElementById('soundBtn');
+    const likeBtn = document.getElementById('likeBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+
+    let isLiked = false;
+    let isMuted = true;
+
+    // ============ Video Event Listeners ============
+    video.addEventListener('loadstart', () => {
+        loadingOverlay.classList.remove('hide');
+    });
+
+    video.addEventListener('loadedmetadata', () => {
+        loadingOverlay.classList.add('hide');
+        // Video tayyor, ovozsiz o'ynatishga urinish
+        video.play().catch(e => console.log('Play blocked:', e));
+    });
+
+    video.addEventListener('canplay', () => {
+        loadingOverlay.classList.add('hide');
+    });
+
+    video.addEventListener('timeupdate', () => {
+        if (video.duration) {
+            const percent = (video.currentTime / video.duration) * 100;
+            progressFilled.style.width = percent + '%';
+        }
+    });
+
+    video.addEventListener('waiting', () => {
+        bufferStatus.classList.add('show');
+        bufferText.textContent = '⏳ Yuklanmoqda...';
+    });
+
+    video.addEventListener('playing', () => {
+        bufferStatus.classList.remove('show');
+    });
+
+    video.addEventListener('ended', () => {
+        // Loop - qayta boshlash
+        video.currentTime = 0;
+        video.play().catch(e => console.log('Replay error:', e));
+    });
+
+    video.addEventListener('error', () => {
+        bufferStatus.classList.add('show');
+        bufferText.textContent = '❌ Xatolik! Qayta yuklanmoqda...';
+        setTimeout(() => {
+            video.load();
+        }, 2000);
+    });
+
+    // ============ Sound Button ============
+    function toggleSound() {
+        isMuted = !isMuted;
+        video.muted = isMuted;
+        soundBtn.innerHTML = isMuted ? '<i class="fas fa-volume-mute"></i>' : '<i class="fas fa-volume-up"></i>';
+    }
+
+    soundBtn.addEventListener('click', toggleSound);
+
+    // ============ Like Button ============
+    function toggleLike() {
+        isLiked = !isLiked;
+        if (isLiked) {
+            likeBtn.innerHTML = '<i class="fas fa-heart"></i>';
+            likeBtn.classList.add('liked');
+            setTimeout(() => {
+                likeBtn.classList.remove('liked');
+            }, 400);
+        } else {
+            likeBtn.innerHTML = '<i class="far fa-heart"></i>';
+        }
+        
+        // Save to localStorage
+        const likes = JSON.parse(localStorage.getItem('kinotop_likes') || '{}');
+        likes[{{ short.id }}] = isLiked;
+        localStorage.setItem('kinotop_likes', JSON.stringify(likes));
+    }
+
+    likeBtn.addEventListener('click', toggleLike);
+
+    // Load like status from localStorage
+    const savedLikes = JSON.parse(localStorage.getItem('kinotop_likes') || '{}');
+    if (savedLikes[{{ short.id }}]) {
+        isLiked = true;
+        likeBtn.innerHTML = '<i class="fas fa-heart"></i>';
+    }
+
+    // ============ Download Button ============
+    function downloadVideo() {
+        const link = document.createElement('a');
+        link.href = `/download-shorts/{{ short.id }}`;
+        link.download = '{{ short.sarlavha }}.mp4';
+        link.click();
+        
+        // Show feedback
+        const originalText = downloadBtn.innerHTML;
+        downloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        setTimeout(() => {
+            downloadBtn.innerHTML = originalText;
+        }, 2000);
+    }
+
+    downloadBtn.addEventListener('click', downloadVideo);
+
+    // ============ Keyboard Shortcuts ============
+    document.addEventListener('keydown', (e) => {
+        // Space - Play/Pause
+        if (e.code === 'Space') {
+            e.preventDefault();
+            if (video.paused) {
+                video.play();
+            } else {
+                video.pause();
+            }
+        }
+        // Left Arrow - 10 seconds back
+        if (e.code === 'ArrowLeft') {
+            e.preventDefault();
+            video.currentTime = Math.max(0, video.currentTime - 10);
+        }
+        // Right Arrow - 10 seconds forward
+        if (e.code === 'ArrowRight') {
+            e.preventDefault();
+            video.currentTime = Math.min(video.duration, video.currentTime + 10);
+        }
+        // M key - Mute/Unmute
+        if (e.code === 'KeyM') {
+            e.preventDefault();
+            toggleSound();
+        }
+        // L key - Like/Unlike
+        if (e.code === 'KeyL') {
+            e.preventDefault();
+            toggleLike();
+        }
+        // F key - Fullscreen
+        if (e.code === 'KeyF') {
+            e.preventDefault();
+            if (video.requestFullscreen) {
+                video.requestFullscreen();
+            }
+        }
+    });
+
+    // ============ Double Click Like ============
+    video.addEventListener('dblclick', () => {
+        if (!isLiked) {
+            toggleLike();
+        }
+    });
+
+    // ============ Auto Retry if Stuck ============
+    setTimeout(() => {
+        if (video.readyState === 0) {
+            video.load();
+            bufferStatus.classList.add('show');
+            bufferText.textContent = '🔄 Qayta ulanish...';
+        }
+    }, 5000);
+
+    // ============ Save Progress ============
+    let lastSaveTime = 0;
+    setInterval(() => {
+        if (video.currentTime > 5 && video.currentTime !== lastSaveTime && !video.paused) {
+            lastSaveTime = video.currentTime;
+            localStorage.setItem(`kinotop_short_progress_{{ short.id }}`, video.currentTime);
+        }
+    }, 10000);
+
+    // ============ Resume from saved progress ============
+    const savedProgress = localStorage.getItem(`kinotop_short_progress_{{ short.id }}`);
+    if (savedProgress && parseFloat(savedProgress) > 5 && parseFloat(savedProgress) < video.duration - 5) {
+        video.currentTime = parseFloat(savedProgress);
+        bufferStatus.classList.add('show');
+        bufferText.textContent = `📌 ${Math.floor(savedProgress / 60)}:${Math.floor(savedProgress % 60)} dan davom`;
+        setTimeout(() => {
+            bufferStatus.classList.remove('show');
+        }, 3000);
+    }
+
+    // ============ Initial Play ============
+    // Start with muted (autoplay policy)
+    video.muted = true;
+    video.play().catch(e => console.log('Autoplay blocked:', e));
+</script>
 </body>
 </html>
