@@ -26,6 +26,10 @@
             position: fixed;
         }
 
+        body:fullscreen { overflow: hidden !important; width: 100% !important; height: 100% !important; }
+        body:-webkit-full-screen { overflow: hidden !important; }
+        body:-moz-full-screen { overflow: hidden !important; }
+
         .film-container {
             position: relative;
             width: 100%;
@@ -44,13 +48,22 @@
             overflow: hidden;
         }
 
-        .video-wrapper video {
+        .video-wrapper iframe {
             width: 100%;
             height: 100%;
+            border: none;
+            position: absolute;
+            top: 0;
+            left: 0;
             object-fit: contain;
-            background: #000;
         }
 
+        /* YouTube logo va tugmalarni yashirish */
+        .video-wrapper iframe {
+            pointer-events: none;
+        }
+
+        /* Overlay pointer events - faqat boshqaruv uchun */
         .controls-overlay {
             position: absolute;
             bottom: 0;
@@ -58,10 +71,10 @@
             right: 0;
             background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
             padding: 20px;
-            z-index: 10;
+            z-index: 20;
             opacity: 0;
             transition: opacity 0.3s ease;
-            pointer-events: none;
+            pointer-events: auto;
         }
 
         .video-wrapper:hover .controls-overlay,
@@ -165,7 +178,7 @@
             position: fixed;
             top: 20px;
             left: 20px;
-            z-index: 20;
+            z-index: 30;
             background: rgba(0,0,0,0.5);
             backdrop-filter: blur(10px);
             width: 45px;
@@ -255,7 +268,7 @@
     </div>
     
     <div class="video-wrapper" id="videoWrapper">
-        <video id="videoPlayer" src="" preload="metadata"></video>
+        <iframe id="youtubeFrame" src="about:blank" allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowfullscreen="true"></iframe>
         
         <div class="controls-overlay" id="controlsOverlay">
             <div class="control-buttons">
@@ -298,30 +311,16 @@
 <script>
     // ============ FILM MA'LUMOTLARI ============
     const filmData = {{ film | tojson | safe }};
+    let player = null;
     let isPlaying = false;
     let controlsTimeout = null;
     let isFullScreen = false;
+    let playerReady = false;
+    let videoDuration = 0;
+    let progressInterval = null;
     
-    const video = document.getElementById('videoPlayer');
-    const playPauseBtn = document.getElementById('playPauseBtn');
-    const fullscreenBtn = document.getElementById('fullscreenBtn');
-    const rewindBtn = document.getElementById('rewindBtn');
-    const forwardBtn = document.getElementById('forwardBtn');
-    const backBtn = document.getElementById('backBtn');
-    const progressBar = document.getElementById('progressBar');
-    const progressFilled = document.getElementById('progressFilled');
-    const currentTimeSpan = document.getElementById('currentTime');
-    const durationSpan = document.getElementById('duration');
-    const loadingOverlay = document.getElementById('filmLoading');
-    const errorMsg = document.getElementById('errorMessage');
-    
-    // ============ VIDEO SOURCENI OLISH ============
-    let videoUrl = '';
-    let isYouTube = false;
-    let youTubeId = '';
-    
-    // YouTube ID ni ajratish
-    function extractYouTubeId(url) {
+    // ============ YOUTUBE ID AJRATISH ============
+    function getYouTubeId(url) {
         if (!url) return null;
         if (url.includes('youtu.be/')) {
             return url.split('youtu.be/')[1].split('?')[0];
@@ -336,118 +335,99 @@
         return null;
     }
     
-    // Video URL ni aniqlash
+    // ============ YOUTUBE PLAYER ============
+    let youTubeId = null;
     const embedUrl = filmData.embed_url || filmData.video_url || '';
-    youTubeId = extractYouTubeId(embedUrl);
+    youTubeId = getYouTubeId(embedUrl);
     
-    if (youTubeId) {
-        isYouTube = true;
-        videoUrl = `https://www.youtube.com/embed/${youTubeId}?autoplay=1&controls=0&modestbranding=1&showinfo=0&rel=0&playsinline=1`;
-        // YouTube uchun video element ishlatilmaydi, iframe kerak. Shuning uchun YouTube bo'lsa boshqa usul
-    }
-    
-    // ============ NATIVE VIDEO PLAYER (MP4 fayllar uchun) ============
-    function initNativePlayer() {
-        // MP4 yoki boshqa to'g'ridan-to'g'ri video fayl
-        let directUrl = embedUrl;
-        
-        // YouTube bo'lmasa va to'g'ridan-to'g'ri video fayl bo'lsa
-        if (!isYouTube && directUrl && (directUrl.includes('.mp4') || directUrl.includes('.m3u8') || directUrl.includes('/stream/'))) {
-            video.src = directUrl;
-            video.load();
-            
-            video.addEventListener('loadedmetadata', () => {
-                loadingOverlay.classList.add('hide');
-                durationSpan.textContent = formatTime(video.duration);
-                video.play().catch(e => console.log('Autoplay failed:', e));
-                isPlaying = true;
-                playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
-            });
-            
-            video.addEventListener('timeupdate', updateProgress);
-            video.addEventListener('ended', () => {
-                isPlaying = false;
-                playPauseBtn.innerHTML = '<i class="fas fa-redo-alt"></i>';
-            });
-            video.addEventListener('play', () => {
-                isPlaying = true;
-                playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
-            });
-            video.addEventListener('pause', () => {
-                isPlaying = false;
-                playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
-            });
-            video.addEventListener('error', (e) => {
-                loadingOverlay.classList.add('hide');
-                showError('Video yuklanmadi!');
-            });
-        } 
-        // YouTube uchun iframe yaratish
-        else if (youTubeId) {
-            // YouTube uchun iframe yaratish
-            const wrapper = document.getElementById('videoWrapper');
-            const iframe = document.createElement('iframe');
-            iframe.width = '100%';
-            iframe.height = '100%';
-            iframe.style.border = 'none';
-            iframe.style.position = 'absolute';
-            iframe.style.top = '0';
-            iframe.style.left = '0';
-            iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen';
-            iframe.allowFullscreen = true;
-            iframe.src = `https://www.youtube.com/embed/${youTubeId}?autoplay=1&controls=1&modestbranding=1&showinfo=0&rel=0&playsinline=1&enablejsapi=1`;
-            
-            // Videoni yashirish
-            video.style.display = 'none';
-            wrapper.appendChild(iframe);
-            
-            loadingOverlay.classList.add('hide');
-            
-            // Iframe uchun fullscreen tugmasi
-            fullscreenBtn.onclick = () => {
-                if (iframe.requestFullscreen) iframe.requestFullscreen();
-                else if (iframe.webkitRequestFullscreen) iframe.webkitRequestFullscreen();
-            };
-            
-            playPauseBtn.onclick = () => {
-                // YouTube iframe ni boshqarish qiyin, shuning uchun oddiy usul
-                alert('YouTube videoda boshqaruv uchun videoning oʻz tugmalaridan foydalaning');
-            };
-            
+    function loadYouTubeAPI() {
+        if (typeof YT !== 'undefined' && YT && YT.Player) {
+            createPlayer();
             return;
         }
-        else {
-            loadingOverlay.classList.add('hide');
-            showError('Video manzili topilmadi!');
+        const tag = document.createElement('script');
+        tag.src = 'https://www.youtube.com/iframe_api';
+        const firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+    }
+    
+    function createPlayer() {
+        if (!youTubeId) {
+            document.getElementById('filmLoading').classList.add('hide');
+            document.getElementById('errorMessage').classList.add('show');
+            return;
+        }
+        
+        document.getElementById('filmTitle').textContent = filmData.sarlavha || filmData.nomi || 'Film';
+        document.getElementById('filmDesc').textContent = filmData.tafsilot || filmData.description || '';
+        
+        player = new YT.Player('youtubeFrame', {
+            videoId: youTubeId,
+            playerVars: {
+                autoplay: 1,
+                controls: 0,
+                modestbranding: 1,
+                showinfo: 0,
+                rel: 0,
+                playsinline: 1,
+                enablejsapi: 1,
+                origin: window.location.origin
+            },
+            events: {
+                onReady: onPlayerReady,
+                onStateChange: onPlayerStateChange,
+                onError: onPlayerError
+            }
+        });
+    }
+    
+    function onPlayerReady(event) {
+        playerReady = true;
+        videoDuration = player.getDuration();
+        document.getElementById('duration').textContent = formatTime(videoDuration);
+        document.getElementById('filmLoading').classList.add('hide');
+        isPlaying = true;
+        document.getElementById('playPauseBtn').innerHTML = '<i class="fas fa-pause"></i>';
+        
+        if (progressInterval) clearInterval(progressInterval);
+        progressInterval = setInterval(() => {
+            if (playerReady && player && player.getCurrentTime) {
+                updateProgress();
+            }
+        }, 500);
+        
+        const wrapper = document.getElementById('videoWrapper');
+        wrapper.addEventListener('mousemove', showControls);
+        wrapper.addEventListener('click', showControls);
+        wrapper.addEventListener('touchstart', showControls);
+        wrapper.addEventListener('dblclick', (e) => {
+            e.preventDefault();
+            toggleFullScreen();
+        });
+    }
+    
+    function onPlayerStateChange(event) {
+        const state = event.data;
+        if (state === YT.PlayerState.PLAYING) {
+            isPlaying = true;
+            document.getElementById('playPauseBtn').innerHTML = '<i class="fas fa-pause"></i>';
+        } else if (state === YT.PlayerState.PAUSED) {
+            isPlaying = false;
+            document.getElementById('playPauseBtn').innerHTML = '<i class="fas fa-play"></i>';
+        } else if (state === YT.PlayerState.ENDED) {
+            isPlaying = false;
+            document.getElementById('playPauseBtn').innerHTML = '<i class="fas fa-redo-alt"></i>';
         }
     }
     
-    // ============ FULL SCREEN ============
-    function toggleFullScreen() {
-        const elem = document.getElementById('videoWrapper');
-        if (!isFullScreen) {
-            if (elem.requestFullscreen) elem.requestFullscreen();
-            else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
-            else if (elem.msRequestFullscreen) elem.msRequestFullscreen();
-            fullscreenBtn.innerHTML = '<i class="fas fa-compress"></i>';
-            isFullScreen = true;
-        } else {
-            if (document.exitFullscreen) document.exitFullscreen();
-            else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
-            else if (document.msExitFullscreen) document.msExitFullscreen();
-            fullscreenBtn.innerHTML = '<i class="fas fa-expand"></i>';
-            isFullScreen = false;
-        }
+    function onPlayerError(event) {
+        console.error('YouTube error:', event.data);
+        document.getElementById('filmLoading').classList.add('hide');
+        document.getElementById('errorMessage').classList.add('show');
+        setTimeout(() => {
+            document.getElementById('errorMessage').classList.remove('show');
+        }, 5000);
     }
-    
-    function handleFullScreenChange() {
-        const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
-        fullscreenBtn.innerHTML = isFs ? '<i class="fas fa-compress"></i>' : '<i class="fas fa-expand"></i>';
-        isFullScreen = isFs;
-    }
-    
-    document.addEventListener('fullscreenchange', handleFullScreenChange);
-    document.addEventListener('webkitfullscreenchange', handleFullScreenChange);
     
     // ============ VIDEO CONTROLS ============
     function showControls() {
@@ -463,68 +443,90 @@
     }
     
     function togglePlayPause() {
-        if (video.paused) {
-            video.play();
-            playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
-            isPlaying = true;
+        if (!playerReady || !player) return;
+        if (isPlaying) {
+            player.pauseVideo();
         } else {
-            video.pause();
-            playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
-            isPlaying = false;
+            player.playVideo();
         }
     }
     
     function seekRelative(seconds) {
-        video.currentTime = Math.min(Math.max(0, video.currentTime + seconds), video.duration);
-    }
-    
-    function updateProgress() {
-        const percent = (video.currentTime / video.duration) * 100;
-        progressFilled.style.width = percent + '%';
-        currentTimeSpan.textContent = formatTime(video.currentTime);
-        durationSpan.textContent = formatTime(video.duration);
+        if (!playerReady || !player) return;
+        const current = player.getCurrentTime();
+        const newTime = Math.min(Math.max(0, current + seconds), videoDuration);
+        player.seekTo(newTime, true);
     }
     
     function formatTime(seconds) {
-        if (isNaN(seconds)) return '0:00';
+        if (isNaN(seconds) || seconds === undefined) return '0:00';
         const mins = Math.floor(seconds / 60);
         const secs = Math.floor(seconds % 60);
         return `${mins}:${secs.toString().padStart(2, '0')}`;
     }
     
-    function showError(message) {
-        errorMsg.innerHTML = '<i class="fas fa-exclamation-triangle"></i> ' + message;
-        errorMsg.classList.add('show');
-        setTimeout(() => errorMsg.classList.remove('show'), 5000);
+    function updateProgress() {
+        if (!playerReady || !player) return;
+        try {
+            const current = player.getCurrentTime();
+            const filled = (current / videoDuration) * 100;
+            document.getElementById('progressFilled').style.width = filled + '%';
+            document.getElementById('currentTime').textContent = formatTime(current);
+            document.getElementById('duration').textContent = formatTime(videoDuration);
+        } catch(e) {}
     }
     
-    // ============ EVENT LISTENERS ============
-    playPauseBtn.addEventListener('click', togglePlayPause);
-    fullscreenBtn.addEventListener('click', toggleFullScreen);
-    rewindBtn.addEventListener('click', () => seekRelative(-10));
-    forwardBtn.addEventListener('click', () => seekRelative(10));
-    backBtn.addEventListener('click', () => window.location.href = '/');
+    // ============ FULL SCREEN ============
+    function toggleFullScreen() {
+        const wrapper = document.getElementById('videoWrapper');
+        const iframe = document.getElementById('youtubeFrame');
+        
+        if (!isFullScreen) {
+            if (wrapper.requestFullscreen) wrapper.requestFullscreen();
+            else if (wrapper.webkitRequestFullscreen) wrapper.webkitRequestFullscreen();
+            else if (wrapper.msRequestFullscreen) wrapper.msRequestFullscreen();
+            else if (iframe.requestFullscreen) iframe.requestFullscreen();
+            else if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
+            document.getElementById('fullscreenBtn').innerHTML = '<i class="fas fa-compress"></i>';
+            isFullScreen = true;
+        } else {
+            if (document.exitFullscreen) document.exitFullscreen();
+            else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+            else if (document.msExitFullscreen) document.msExitFullscreen();
+            document.getElementById('fullscreenBtn').innerHTML = '<i class="fas fa-expand"></i>';
+            isFullScreen = false;
+        }
+    }
     
-    progressBar.addEventListener('click', (e) => {
-        const rect = progressBar.getBoundingClientRect();
+    function handleFullScreenChange() {
+        const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement);
+        const btn = document.getElementById('fullscreenBtn');
+        if (btn) {
+            btn.innerHTML = isFs ? '<i class="fas fa-compress"></i>' : '<i class="fas fa-expand"></i>';
+            isFullScreen = isFs;
+        }
+    }
+    
+    document.addEventListener('fullscreenchange', handleFullScreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullScreenChange);
+    
+    // ============ PROGRESS BAR CLICK ============
+    document.getElementById('progressBar').addEventListener('click', (e) => {
+        if (!playerReady) return;
+        const rect = e.currentTarget.getBoundingClientRect();
         const pos = (e.clientX - rect.left) / rect.width;
-        video.currentTime = pos * video.duration;
+        const seekTime = pos * videoDuration;
+        player.seekTo(seekTime, true);
     });
     
-    video.addEventListener('play', () => {
-        isPlaying = true;
-        playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
+    // ============ BUTTON EVENT LISTENERS ============
+    document.getElementById('playPauseBtn').addEventListener('click', togglePlayPause);
+    document.getElementById('fullscreenBtn').addEventListener('click', toggleFullScreen);
+    document.getElementById('rewindBtn').addEventListener('click', () => seekRelative(-10));
+    document.getElementById('forwardBtn').addEventListener('click', () => seekRelative(10));
+    document.getElementById('backBtn').addEventListener('click', () => {
+        window.location.href = '/';
     });
-    video.addEventListener('pause', () => {
-        isPlaying = false;
-        playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
-    });
-    
-    const wrapper = document.getElementById('videoWrapper');
-    wrapper.addEventListener('mousemove', showControls);
-    wrapper.addEventListener('click', showControls);
-    wrapper.addEventListener('touchstart', showControls);
-    wrapper.addEventListener('dblclick', () => toggleFullScreen());
     
     // ============ KEYBOARD SHORTCUTS ============
     document.addEventListener('keydown', (e) => {
@@ -544,19 +546,26 @@
             e.preventDefault();
             toggleFullScreen();
         }
+        else if (e.key === 'Escape' && isFullScreen) {
+            e.preventDefault();
+            toggleFullScreen();
+        }
         showControls();
     });
     
-    // ============ FILM MA'LUMOTLARINI KO'RSATISH ============
-    document.getElementById('filmTitle').textContent = filmData.sarlavha || filmData.nomi || 'Film';
-    document.getElementById('filmDesc').textContent = filmData.tafsilot || filmData.description || '';
-    
     // ============ START ============
-    initNativePlayer();
+    if (youTubeId) {
+        window.onYouTubeIframeAPIReady = createPlayer;
+        loadYouTubeAPI();
+    } else {
+        document.getElementById('filmLoading').classList.add('hide');
+        document.getElementById('errorMessage').classList.add('show');
+    }
     
     setTimeout(() => {
-        loadingOverlay.classList.add('hide');
-    }, 8000);
+        const loading = document.getElementById('filmLoading');
+        if (loading) loading.classList.add('hide');
+    }, 10000);
 </script>
 </body>
 </html>
