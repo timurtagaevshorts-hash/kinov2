@@ -26,28 +26,16 @@
             width: 100%;
         }
 
-        /* Full screen mode */
-        body:fullscreen {
-            overflow: hidden !important;
-        }
-        body:-webkit-full-screen {
-            overflow: hidden !important;
-        }
-        body:-moz-full-screen {
-            overflow: hidden !important;
-        }
+        body:fullscreen { overflow: hidden !important; }
+        body:-webkit-full-screen { overflow: hidden !important; }
 
-        /* Film Container */
         .film-container {
             position: relative;
             width: 100%;
             height: 100vh;
             background: #000;
-            display: flex;
-            flex-direction: column;
         }
 
-        /* Video Player */
         .video-wrapper {
             position: relative;
             width: 100%;
@@ -68,19 +56,6 @@
             left: 0;
         }
 
-        /* Full screen mode styles */
-        .video-wrapper iframe:-webkit-full-screen {
-            width: 100% !important;
-            height: 100% !important;
-            object-fit: contain !important;
-        }
-        .video-wrapper iframe:fullscreen {
-            width: 100% !important;
-            height: 100% !important;
-            object-fit: contain !important;
-        }
-
-        /* Controls Overlay */
         .controls-overlay {
             position: absolute;
             bottom: 0;
@@ -95,10 +70,7 @@
         }
 
         .video-wrapper:hover .controls-overlay,
-        .video-wrapper:active .controls-overlay {
-            opacity: 1;
-        }
-
+        .video-wrapper:active .controls-overlay,
         .controls-overlay.show {
             opacity: 1;
         }
@@ -128,15 +100,7 @@
             border: 1px solid rgba(255,255,255,0.3);
         }
 
-        .control-btn:active {
-            transform: scale(0.95);
-        }
-
-        .control-btn:hover {
-            background: rgba(102,126,234,0.8);
-            transform: scale(1.05);
-        }
-
+        .control-btn:active { transform: scale(0.95); }
         .play-pause-btn {
             width: 60px;
             height: 60px;
@@ -144,7 +108,6 @@
             background: linear-gradient(135deg, #667eea, #764ba2);
         }
 
-        /* Progress Bar */
         .progress-container {
             padding: 0 10px;
             pointer-events: auto;
@@ -156,7 +119,6 @@
             background: rgba(255,255,255,0.3);
             border-radius: 2px;
             cursor: pointer;
-            position: relative;
         }
 
         .progress-filled {
@@ -164,7 +126,6 @@
             height: 100%;
             background: linear-gradient(90deg, #667eea, #764ba2);
             border-radius: 2px;
-            position: relative;
         }
 
         .time-info {
@@ -176,7 +137,6 @@
             font-family: monospace;
         }
 
-        /* Film Info */
         .film-info {
             position: absolute;
             top: 0;
@@ -191,7 +151,7 @@
         }
 
         .video-wrapper:hover .film-info,
-        .video-wrapper:active .film-info {
+        .film-info.show {
             opacity: 1;
         }
 
@@ -199,16 +159,13 @@
             color: white;
             font-size: 1.2rem;
             font-weight: 700;
-            margin-bottom: 5px;
         }
 
         .film-desc {
             color: rgba(255,255,255,0.7);
             font-size: 0.8rem;
-            line-height: 1.4;
         }
 
-        /* Back Button */
         .back-btn {
             position: fixed;
             top: 20px;
@@ -226,19 +183,9 @@
             text-decoration: none;
             font-size: 1.2rem;
             cursor: pointer;
-            transition: transform 0.2s, background 0.2s;
             border: 1px solid rgba(255,255,255,0.2);
         }
 
-        .back-btn:active {
-            transform: scale(0.95);
-        }
-
-        .back-btn:hover {
-            background: rgba(102,126,234,0.8);
-        }
-
-        /* Loading */
         .film-loading {
             position: fixed;
             top: 0;
@@ -269,50 +216,10 @@
             animation: spin 0.8s linear infinite;
         }
 
-        .loading-text {
-            color: white;
-            font-size: 1rem;
-            letter-spacing: 1px;
-        }
-
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
 
-        /* Quality Selector */
-        .quality-selector {
-            position: absolute;
-            bottom: 100px;
-            right: 20px;
-            z-index: 15;
-            background: rgba(0,0,0,0.7);
-            backdrop-filter: blur(10px);
-            border-radius: 30px;
-            padding: 5px;
-            display: none;
-            pointer-events: auto;
-        }
-
-        .quality-selector.show {
-            display: flex;
-            gap: 5px;
-        }
-
-        .quality-btn {
-            background: transparent;
-            border: none;
-            padding: 8px 12px;
-            color: white;
-            font-size: 0.7rem;
-            border-radius: 20px;
-            cursor: pointer;
-        }
-
-        .quality-btn.active {
-            background: #667eea;
-        }
-
-        /* Error Message */
         .error-message {
             position: fixed;
             bottom: 30px;
@@ -335,19 +242,8 @@
         }
 
         @media (max-width: 768px) {
-            .control-btn {
-                width: 40px;
-                height: 40px;
-                font-size: 1rem;
-            }
-            .play-pause-btn {
-                width: 50px;
-                height: 50px;
-                font-size: 1.3rem;
-            }
-            .film-title {
-                font-size: 1rem;
-            }
+            .control-btn { width: 40px; height: 40px; font-size: 1rem; }
+            .play-pause-btn { width: 50px; height: 50px; font-size: 1.3rem; }
         }
     </style>
 </head>
@@ -358,7 +254,7 @@
     <div class="loading-text">🎬 Film yuklanmoqda...</div>
 </div>
 
-<div class="film-container" id="filmContainer">
+<div class="film-container">
     <a href="/" class="back-btn">
         <i class="fas fa-arrow-left"></i>
     </a>
@@ -366,12 +262,9 @@
     <div class="video-wrapper" id="videoWrapper">
         <iframe id="videoIframe" 
                 allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
-                allowfullscreen="true"
-                webkitallowfullscreen="true"
-                mozallowfullscreen="true">
+                allowfullscreen="true">
         </iframe>
         
-        <!-- Controls -->
         <div class="controls-overlay" id="controlsOverlay">
             <div class="control-buttons">
                 <div class="control-btn" id="rewindBtn">
@@ -399,85 +292,63 @@
             </div>
         </div>
         
-        <!-- Film Info -->
         <div class="film-info" id="filmInfo">
             <div class="film-title" id="filmTitle">Loading...</div>
             <div class="film-desc" id="filmDesc"></div>
-        </div>
-        
-        <!-- Quality Selector -->
-        <div class="quality-selector" id="qualitySelector">
-            <!-- Quality options will be added dynamically -->
         </div>
     </div>
 </div>
 
 <div class="error-message" id="errorMessage">
-    <i class="fas fa-exclamation-triangle"></i> Video yuklashda xatolik yuz berdi
+    <i class="fas fa-exclamation-triangle"></i> Video yuklashda xatolik
 </div>
 
 <script>
-    // ============ GET FILM DATA FROM SERVER ============
+    // ============ FILM KODINI OLISH ============
     const filmCode = window.location.pathname.split('/').pop();
-    let filmData = null;
+    
+    // ============ TO'G'RIDAN-TO'G'RI FILM MA'LUMOTLARI ============
+    // Bu qism backenddan keladi - Flask render_template da qo'shiladi
+    const filmDataFromServer = {{ film | tojson | safe }};
+    
     let currentIframe = null;
     let isPlaying = false;
     let controlsTimeout = null;
     let isFullScreen = false;
+    let playerReady = false;
     
-    // ============ FULL SCREEN FUNCTIONS ============
+    // ============ FULL SCREEN ============
     function toggleFullScreen() {
-        const videoWrapper = document.getElementById('videoWrapper');
         const iframe = document.getElementById('videoIframe');
         
         if (!isFullScreen) {
-            // Enter full screen
             if (iframe.requestFullscreen) {
                 iframe.requestFullscreen();
             } else if (iframe.webkitRequestFullscreen) {
                 iframe.webkitRequestFullscreen();
-            } else if (iframe.msRequestFullscreen) {
-                iframe.msRequestFullscreen();
-            } else if (videoWrapper.requestFullscreen) {
-                videoWrapper.requestFullscreen();
-            } else {
-                // Fallback - try with body
-                document.body.requestFullscreen();
+            } else if (document.documentElement.requestFullscreen) {
+                document.documentElement.requestFullscreen();
             }
-            document.getElementById('fullscreenBtn').innerHTML = '<i class="fas fa-compress"></i>';
             isFullScreen = true;
         } else {
-            // Exit full screen
             if (document.exitFullscreen) {
                 document.exitFullscreen();
             } else if (document.webkitExitFullscreen) {
                 document.webkitExitFullscreen();
-            } else if (document.msExitFullscreen) {
-                document.msExitFullscreen();
             }
-            document.getElementById('fullscreenBtn').innerHTML = '<i class="fas fa-expand"></i>';
             isFullScreen = false;
         }
     }
     
-    // Listen for full screen change
-    document.addEventListener('fullscreenchange', updateFullScreenStatus);
-    document.addEventListener('webkitfullscreenchange', updateFullScreenStatus);
-    document.addEventListener('mozfullscreenchange', updateFullScreenStatus);
-    
-    function updateFullScreenStatus() {
-        isFullScreen = !!(document.fullscreenElement || document.webkitFullscreenElement);
-        const fullscreenBtn = document.getElementById('fullscreenBtn');
-        if (fullscreenBtn) {
-            if (isFullScreen) {
-                fullscreenBtn.innerHTML = '<i class="fas fa-compress"></i>';
-            } else {
-                fullscreenBtn.innerHTML = '<i class="fas fa-expand"></i>';
-            }
+    document.addEventListener('fullscreenchange', () => {
+        isFullScreen = !!document.fullscreenElement;
+        const btn = document.getElementById('fullscreenBtn');
+        if (btn) {
+            btn.innerHTML = isFullScreen ? '<i class="fas fa-compress"></i>' : '<i class="fas fa-expand"></i>';
         }
-    }
+    });
     
-    // ============ VIDEO CONTROLS ============
+    // ============ CONTROLS ============
     function showControls() {
         const controls = document.getElementById('controlsOverlay');
         const filmInfo = document.getElementById('filmInfo');
@@ -491,7 +362,6 @@
         }, 3000);
     }
     
-    // Toggle play/pause
     function togglePlayPause() {
         if (currentIframe && currentIframe.contentWindow) {
             if (isPlaying) {
@@ -506,7 +376,6 @@
         }
     }
     
-    // Seek forward/backward
     function seek(seconds) {
         if (currentIframe && currentIframe.contentWindow) {
             currentIframe.contentWindow.postMessage(JSON.stringify({
@@ -517,47 +386,38 @@
         }
     }
     
-    // ============ FETCH FILM DATA ============
-    async function loadFilm() {
-        const loading = document.getElementById('filmLoading');
-        const errorMsg = document.getElementById('errorMessage');
-        
-        try {
-            const response = await fetch(`/api/film/${filmCode}`);
-            const data = await response.json();
-            
-            if (data.exists && data.film) {
-                filmData = data.film;
-                displayFilm();
-            } else {
-                throw new Error('Film not found');
-            }
-        } catch (error) {
-            console.error('Error loading film:', error);
-            loading.classList.add('hide');
-            showError('Film topilmadi!');
-            setTimeout(() => {
-                window.location.href = '/';
-            }, 2000);
-        }
-    }
-    
+    // ============ DISPLAY FILM ============
     function displayFilm() {
         const loading = document.getElementById('filmLoading');
         const iframe = document.getElementById('videoIframe');
         const title = document.getElementById('filmTitle');
         const desc = document.getElementById('filmDesc');
         
-        // Set film info
-        title.textContent = filmData.sarlavha || filmData.nomi || 'Film';
-        desc.textContent = filmData.tafsilot || filmData.description || '';
+        // Film ma'lumotlarini ko'rsatish
+        if (filmDataFromServer) {
+            title.textContent = filmDataFromServer.sarlavha || filmDataFromServer.nomi || 'Film';
+            desc.textContent = filmDataFromServer.tafsilot || filmDataFromServer.description || '';
+        } else {
+            title.textContent = 'Film';
+            desc.textContent = '';
+        }
         
-        // Build video URL
-        let videoUrl = filmData.video_url || filmData.embed_url;
+        // Video URL ni tayyorlash
+        let videoUrl = '';
         
-        // Add autoplay and other parameters
+        if (filmDataFromServer && filmDataFromServer.embed_url) {
+            videoUrl = filmDataFromServer.embed_url;
+        } else if (filmDataFromServer && filmDataFromServer.video_url) {
+            videoUrl = filmDataFromServer.video_url;
+        } else {
+            // Test uchun - o'chirib qo'yishingiz mumkin
+            showError('Video URL topilmadi!');
+            loading.classList.add('hide');
+            return;
+        }
+        
+        // YouTube video bo'lsa
         if (videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be')) {
-            // YouTube video
             let videoId = '';
             if (videoUrl.includes('youtu.be/')) {
                 videoId = videoUrl.split('youtu.be/')[1].split('?')[0];
@@ -567,45 +427,40 @@
                 videoId = videoUrl.split('embed/')[1].split('?')[0];
             }
             
-            videoUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=0&controls=0&modestbranding=1&showinfo=0&rel=0&playsinline=1&enablejsapi=1`;
-        } else if (videoUrl.includes('vimeo.com')) {
-            // Vimeo video
-            let videoId = videoUrl.split('vimeo.com/')[1].split('?')[0];
-            videoUrl = `https://player.vimeo.com/video/${videoId}?autoplay=1&controls=0&playsinline=1`;
+            if (videoId) {
+                videoUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=0&controls=0&modestbranding=1&showinfo=0&rel=0&playsinline=1&enablejsapi=1`;
+            }
         }
         
-        // Set iframe src
+        // Iframe ni yuklash
         iframe.src = videoUrl;
         currentIframe = iframe;
         
-        // Hide loading after video loads
         iframe.onload = () => {
             setTimeout(() => {
                 loading.classList.add('hide');
                 isPlaying = true;
                 document.getElementById('playPauseBtn').innerHTML = '<i class="fas fa-pause"></i>';
+                playerReady = true;
             }, 500);
         };
         
-        // Error handling
         iframe.onerror = () => {
             loading.classList.add('hide');
-            showError('Video yuklanmadi!');
+            showError('Video yuklanmadi! URL ni tekshiring');
         };
         
-        // Show controls on activity
+        // Event listenerlar
         const wrapper = document.getElementById('videoWrapper');
         wrapper.addEventListener('mousemove', showControls);
         wrapper.addEventListener('click', showControls);
         wrapper.addEventListener('touchstart', showControls);
-        
-        // Double click for full screen
         wrapper.addEventListener('dblclick', (e) => {
             e.preventDefault();
             toggleFullScreen();
         });
         
-        // Hide loading after timeout
+        // 5 sekunddan keyin loading ni yashirish
         setTimeout(() => {
             loading.classList.add('hide');
         }, 5000);
@@ -613,11 +468,11 @@
     
     function showError(message) {
         const errorMsg = document.getElementById('errorMessage');
-        errorMsg.textContent = message;
+        errorMsg.innerHTML = '<i class="fas fa-exclamation-triangle"></i> ' + message;
         errorMsg.classList.add('show');
         setTimeout(() => {
             errorMsg.classList.remove('show');
-        }, 3000);
+        }, 4000);
     }
     
     // ============ KEYBOARD CONTROLS ============
@@ -642,112 +497,51 @@
                 toggleFullScreen();
                 break;
             case 'Escape':
-                if (isFullScreen) {
-                    toggleFullScreen();
-                }
+                if (isFullScreen) toggleFullScreen();
                 break;
         }
         showControls();
     });
     
     // ============ TELEGRAM WEB FIX ============
-    function isTelegramWeb() {
-        return /Telegram/.test(navigator.userAgent) || 
-               /TelegramWeb/.test(navigator.userAgent) ||
-               window.location.hostname.includes('telegram.org');
-    }
-    
-    if (isTelegramWeb()) {
-        // Add Telegram specific fixes
+    if (/Telegram/.test(navigator.userAgent)) {
         const style = document.createElement('style');
-        style.textContent = `
-            .video-wrapper iframe {
-                pointer-events: auto !important;
-            }
-            .control-btn {
-                background: rgba(0,0,0,0.7) !important;
-            }
-        `;
+        style.textContent = `.control-btn { background: rgba(0,0,0,0.7) !important; }`;
         document.head.appendChild(style);
         
-        // Show instruction for Telegram users
         setTimeout(() => {
             const instruction = document.createElement('div');
-            instruction.style.position = 'fixed';
-            instruction.style.bottom = '100px';
-            instruction.style.left = '20px';
-            instruction.style.right = '20px';
-            instruction.style.background = 'rgba(0,0,0,0.8)';
-            instruction.style.backdropFilter = 'blur(10px)';
-            instruction.style.padding = '12px';
-            instruction.style.borderRadius = '12px';
-            instruction.style.color = 'white';
-            instruction.style.fontSize = '0.75rem';
-            instruction.style.textAlign = 'center';
-            instruction.style.zIndex = '1000';
+            instruction.style.cssText = 'position:fixed;bottom:100px;left:20px;right:20px;background:rgba(0,0,0,0.8);backdrop-filter:blur(10px);padding:12px;border-radius:12px;color:white;font-size:0.75rem;text-align:center;z-index:1000';
             instruction.innerHTML = '⛶ Full screen uchun ikki marta bosing yoki F tugmasini bosing';
             document.body.appendChild(instruction);
-            
-            setTimeout(() => {
-                instruction.style.opacity = '0';
-                setTimeout(() => instruction.remove(), 500);
-            }, 4000);
+            setTimeout(() => instruction.remove(), 4000);
         }, 1000);
     }
     
-    // ============ LISTEN FOR YOUTUBE PLAYER EVENTS ============
-    window.addEventListener('message', (event) => {
-        if (event.data === 'requestFullScreen') {
-            toggleFullScreen();
-        }
-    });
-    
-    // Update time display (YouTube)
-    function updateTimeInfo() {
-        if (currentIframe && currentIframe.contentWindow) {
-            // Request current time from YouTube player
-            currentIframe.contentWindow.postMessage('{"event":"command","func":"getCurrentTime","args":""}', '*');
-            currentIframe.contentWindow.postMessage('{"event":"command","func":"getDuration","args":""}', '*');
-        }
-    }
-    
-    // Format time
-    function formatTime(seconds) {
-        if (isNaN(seconds)) return '0:00';
-        const mins = Math.floor(seconds / 60);
-        const secs = Math.floor(seconds % 60);
-        return `${mins}:${secs.toString().padStart(2, '0')}`;
-    }
-    
-    // Update progress bar
-    function updateProgress(current, duration) {
-        const progress = (current / duration) * 100;
-        document.getElementById('progressFilled').style.width = `${progress}%`;
-        document.getElementById('currentTime').textContent = formatTime(current);
-        document.getElementById('duration').textContent = formatTime(duration);
-    }
-    
-    // Progress bar click
-    const progressBar = document.getElementById('progressBar');
-    progressBar.addEventListener('click', (e) => {
-        const rect = progressBar.getBoundingClientRect();
-        const pos = (e.clientX - rect.left) / rect.width;
-        const duration = 100; // Get actual duration from video
-        const seekTime = pos * duration;
-        seek(seekTime);
-    });
-    
-    // ============ INITIALIZE ============
+    // ============ INIT ============
     document.getElementById('playPauseBtn').addEventListener('click', togglePlayPause);
     document.getElementById('fullscreenBtn').addEventListener('click', toggleFullScreen);
     document.getElementById('rewindBtn').addEventListener('click', () => seek(-10));
     document.getElementById('forwardBtn').addEventListener('click', () => seek(10));
     
-    // Start loading film
-    loadFilm();
+    const progressBar = document.getElementById('progressBar');
+    progressBar.addEventListener('click', (e) => {
+        const rect = progressBar.getBoundingClientRect();
+        const pos = (e.clientX - rect.left) / rect.width;
+        const duration = 100;
+        seek(pos * duration);
+    });
     
-    // Update time periodically
-    setInterval(updateTimeInfo, 1000);
+    // Filmni ko'rsatish
+    if (filmDataFromServer && filmDataFromServer.id) {
+        displayFilm();
+    } else {
+        document.getElementById('filmLoading').classList.add('hide');
+        showError('Film ma\'lumotlari topilmadi!');
+        setTimeout(() => {
+            window.location.href = '/';
+        }, 2000);
+    }
 </script>
 </body>
 </html>
