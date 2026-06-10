@@ -6,6 +6,8 @@
     <title>{{ film.nomi }} | Kinotop</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- HLS.js - M3U8 formatlar uchun -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
         * {
             margin: 0;
@@ -178,6 +180,7 @@
 
         .film-meta {
             display: flex;
+            flex-wrap: wrap;
             gap: 15px;
             margin-top: 8px;
             font-size: 0.7rem;
@@ -271,6 +274,36 @@
             transform: translateY(0);
         }
 
+        /* Quality selector */
+        .quality-selector {
+            position: fixed;
+            bottom: 100px;
+            right: 20px;
+            z-index: 30;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(10px);
+            border-radius: 30px;
+            padding: 8px 15px;
+            display: none;
+            gap: 10px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .quality-selector.show { display: flex; }
+        .quality-btn {
+            background: transparent;
+            border: none;
+            color: rgba(255,255,255,0.6);
+            padding: 5px 10px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.7rem;
+            transition: all 0.2s;
+        }
+        .quality-btn.active {
+            background: #667eea;
+            color: white;
+        }
+
         @media (max-width: 768px) {
             .control-btn { width: 40px; height: 40px; font-size: 1rem; }
             .play-pause-btn { width: 50px; height: 50px; font-size: 1.3rem; }
@@ -333,6 +366,13 @@
     </div>
 </div>
 
+<div class="quality-selector" id="qualitySelector">
+    <button class="quality-btn" data-quality="auto">Auto</button>
+    <button class="quality-btn" data-quality="1080p">1080p</button>
+    <button class="quality-btn" data-quality="720p">720p</button>
+    <button class="quality-btn" data-quality="480p">480p</button>
+</div>
+
 <div class="error-message" id="errorMessage">
     <i class="fas fa-exclamation-triangle"></i> Video yuklashda xatolik
 </div>
@@ -358,6 +398,7 @@
         const controlsOverlay = document.getElementById('controlsOverlay');
         const filmInfo = document.getElementById('filmInfo');
         const wrapper = document.getElementById('videoWrapper');
+        const qualitySelector = document.getElementById('qualitySelector');
         
         // Holat
         let currentPlayer = null;
@@ -368,6 +409,8 @@
         let progressInterval = null;
         let hls = null;
         let playerType = null;
+        let currentQuality = 'auto';
+        let videoSources = {};
         
         // ============ YORDAMCHI FUNKSIYALAR ============
         function showError(message) {
@@ -395,11 +438,15 @@
         function hideControls() {
             controlsOverlay.classList.remove('show');
             filmInfo.classList.remove('show');
+            qualitySelector.classList.remove('show');
         }
         
         function showControls() {
             controlsOverlay.classList.add('show');
             filmInfo.classList.add('show');
+            if (playerType === 'video') {
+                qualitySelector.classList.add('show');
+            }
             if (controlsTimer) clearTimeout(controlsTimer);
             controlsTimer = setTimeout(hideControls, 3000);
         }
@@ -413,7 +460,7 @@
         function togglePlayPause() {
             if (playerType === 'video' && currentVideo) {
                 if (currentVideo.paused) {
-                    currentVideo.play();
+                    currentVideo.play().catch(e => console.log('Play error:', e));
                     isPlaying = true;
                     playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
                 } else {
@@ -426,7 +473,7 @@
         }
         
         function seek(seconds) {
-            if (playerType === 'video' && currentVideo) {
+            if (playerType === 'video' && currentVideo && currentVideo.duration) {
                 currentVideo.currentTime = Math.max(0, Math.min(currentVideo.duration, currentVideo.currentTime + seconds));
                 updateProgress();
             }
@@ -464,6 +511,17 @@
                     const buffered = (currentVideo.buffered.end(currentVideo.buffered.length - 1) / currentVideo.duration) * 100;
                     progressBuffered.style.width = buffered + '%';
                 }
+            } else if (playerType === 'youtube' && currentPlayer) {
+                try {
+                    const currentTime = currentPlayer.getCurrentTime();
+                    const duration = currentPlayer.getDuration();
+                    if (duration > 0) {
+                        const percent = (currentTime / duration) * 100;
+                        progressFilled.style.width = percent + '%';
+                        currentTimeSpan.textContent = formatTime(currentTime);
+                        durationSpan.textContent = formatTime(duration);
+                    }
+                } catch(e) {}
             }
         }
         
@@ -483,12 +541,40 @@
                 hideLoading();
             });
             video.addEventListener('canplay', hideLoading);
-            video.addEventListener('error', () => {
+            video.addEventListener('error', (e) => {
+                console.error('Video error:', e);
                 showError('Video yuklashda xatolik');
                 hideLoading();
             });
             video.addEventListener('waiting', () => {
                 loading.classList.remove('hide');
+            });
+            video.addEventListener('playing', () => {
+                loading.classList.add('hide');
+            });
+        }
+        
+        // ============ QUALITY SWITCH ============
+        function switchQuality(quality) {
+            if (!currentVideo || !videoSources[quality]) return;
+            
+            const currentTime = currentVideo.currentTime;
+            const wasPlaying = !currentVideo.paused;
+            
+            const newSrc = videoSources[quality];
+            currentVideo.src = newSrc;
+            currentVideo.load();
+            
+            currentVideo.addEventListener('loadedmetadata', () => {
+                currentVideo.currentTime = currentTime;
+                if (wasPlaying) {
+                    currentVideo.play().catch(e => console.log('Play error:', e));
+                }
+            }, { once: true });
+            
+            currentQuality = quality;
+            document.querySelectorAll('.quality-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.quality === quality);
             });
         }
         
@@ -503,28 +589,62 @@
             }
             
             // Tozalash
-            wrapper.innerHTML = '';
+            while (wrapper.firstChild) {
+                wrapper.removeChild(wrapper.firstChild);
+            }
             wrapper.appendChild(controlsOverlay);
             wrapper.appendChild(filmInfo);
             
             // Platforma bo'yicha yuklash
             if (film.platform === 'youtube') {
-                // YouTube - iframe orqali
-                playerType = 'iframe';
+                playerType = 'youtube';
                 const iframe = document.createElement('iframe');
+                iframe.id = 'youtubePlayer';
                 iframe.src = videoUrl;
                 iframe.allow = 'autoplay; fullscreen; encrypted-media; picture-in-picture';
                 iframe.allowFullscreen = true;
                 iframe.style.width = '100%';
                 iframe.style.height = '100%';
                 wrapper.insertBefore(iframe, wrapper.firstChild);
+                
+                // YouTube API yuklash
+                window.onYouTubeIframeAPIReady = () => {
+                    currentPlayer = new YT.Player('youtubePlayer', {
+                        events: {
+                            onReady: () => {
+                                hideLoading();
+                                isPlaying = true;
+                                playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
+                                if (progressInterval) clearInterval(progressInterval);
+                                progressInterval = setInterval(updateProgress, 1000);
+                            },
+                            onStateChange: (event) => {
+                                if (event.data == YT.PlayerState.PLAYING) {
+                                    isPlaying = true;
+                                    playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
+                                } else if (event.data == YT.PlayerState.PAUSED) {
+                                    isPlaying = false;
+                                    playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
+                                }
+                            },
+                            onError: (err) => {
+                                showError('YouTube xatosi: ' + err.data);
+                                hideLoading();
+                            }
+                        }
+                    });
+                };
+                
+                if (!window.YT) {
+                    const tag = document.createElement('script');
+                    tag.src = 'https://www.youtube.com/iframe_api';
+                    document.head.appendChild(tag);
+                } else {
+                    window.onYouTubeIframeAPIReady();
+                }
                 hideLoading();
-                setTimeout(() => {
-                    iframe.onload = hideLoading;
-                }, 1000);
                 
             } else if (film.platform === 'uzmedia') {
-                // Uzmedia.tv - iframe orqali
                 playerType = 'iframe';
                 const iframe = document.createElement('iframe');
                 iframe.src = videoUrl;
@@ -536,7 +656,72 @@
                 hideLoading();
                 
             } else if (film.platform === 'googledrive') {
-                // Google Drive
+                playerType = 'iframe';
+                const iframe = document.createElement('iframe');
+                iframe.src = videoUrl;
+                iframe.allow = 'autoplay; fullscreen';
+                iframe.allowFullscreen = true;
+                iframe.style.width = '100%';
+                iframe.style.height = '100%';
+                wrapper.insertBefore(iframe, wrapper.firstChild);
+                hideLoading();
+                
+            } else if (film.platform === 'vk') {
+                playerType = 'iframe';
+                const iframe = document.createElement('iframe');
+                iframe.src = videoUrl;
+                iframe.allow = 'autoplay; fullscreen';
+                iframe.allowFullscreen = true;
+                iframe.style.width = '100%';
+                iframe.style.height = '100%';
+                wrapper.insertBefore(iframe, wrapper.firstChild);
+                hideLoading();
+                
+            } else if (film.platform === 'uzmovi') {
+                playerType = 'iframe';
+                const iframe = document.createElement('iframe');
+                iframe.src = videoUrl;
+                iframe.allow = 'autoplay; fullscreen';
+                iframe.allowFullscreen = true;
+                iframe.style.width = '100%';
+                iframe.style.height = '100%';
+                wrapper.insertBefore(iframe, wrapper.firstChild);
+                hideLoading();
+                
+            } else if (film.platform === 'instagram') {
+                playerType = 'iframe';
+                const iframe = document.createElement('iframe');
+                iframe.src = videoUrl;
+                iframe.allow = 'autoplay; fullscreen';
+                iframe.allowFullscreen = true;
+                iframe.style.width = '100%';
+                iframe.style.height = '100%';
+                wrapper.insertBefore(iframe, wrapper.firstChild);
+                hideLoading();
+                
+            } else if (film.platform === 'tiktok') {
+                playerType = 'iframe';
+                const iframe = document.createElement('iframe');
+                iframe.src = videoUrl;
+                iframe.allow = 'autoplay; fullscreen';
+                iframe.allowFullscreen = true;
+                iframe.style.width = '100%';
+                iframe.style.height = '100%';
+                wrapper.insertBefore(iframe, wrapper.firstChild);
+                hideLoading();
+                
+            } else if (film.platform === 'vimeo') {
+                playerType = 'iframe';
+                const iframe = document.createElement('iframe');
+                iframe.src = videoUrl;
+                iframe.allow = 'autoplay; fullscreen; picture-in-picture';
+                iframe.allowFullscreen = true;
+                iframe.style.width = '100%';
+                iframe.style.height = '100%';
+                wrapper.insertBefore(iframe, wrapper.firstChild);
+                hideLoading();
+                
+            } else if (film.platform === 'dailymotion') {
                 playerType = 'iframe';
                 const iframe = document.createElement('iframe');
                 iframe.src = videoUrl;
@@ -548,7 +733,6 @@
                 hideLoading();
                 
             } else if (film.platform === 'direct') {
-                // Direct video
                 playerType = 'video';
                 const video = document.createElement('video');
                 video.id = 'videoPlayer';
@@ -563,6 +747,50 @@
                 currentVideo = video;
                 setupVideoEvents(video);
                 video.load();
+                
+                // Quality selector eventlari
+                document.querySelectorAll('.quality-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        switchQuality(btn.dataset.quality);
+                    });
+                });
+                
+            } else if (videoUrl.includes('.m3u8')) {
+                // HLS stream
+                playerType = 'video';
+                const video = document.createElement('video');
+                video.id = 'videoPlayer';
+                video.controls = false;
+                video.autoplay = true;
+                video.playsInline = true;
+                video.style.width = '100%';
+                video.style.height = '100%';
+                video.style.objectFit = 'contain';
+                wrapper.insertBefore(video, wrapper.firstChild);
+                currentVideo = video;
+                
+                if (Hls.isSupported()) {
+                    hls = new Hls({
+                        enableWorker: true,
+                        lowLatencyMode: true
+                    });
+                    hls.loadSource(videoUrl);
+                    hls.attachMedia(video);
+                    hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                        video.play().catch(e => console.log('Play error:', e));
+                        hideLoading();
+                    });
+                    hls.on(Hls.Events.ERROR, (event, data) => {
+                        if (data.fatal) {
+                            showError('M3U8 video xatosi');
+                            hideLoading();
+                        }
+                    });
+                } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                    video.src = videoUrl;
+                    video.addEventListener('loadedmetadata', () => hideLoading());
+                }
+                setupVideoEvents(video);
                 
             } else {
                 // Default iframe
