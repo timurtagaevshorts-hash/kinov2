@@ -41,15 +41,6 @@
         }
 
         /* VIDEO - TO'LIQ EKRAN KATTA QILIB */
-        .video-wrapper iframe {
-            width: 100%;
-            height: 100%;
-            border: none;
-            position: absolute;
-            top: 0;
-            left: 0;
-        }
-
         .video-wrapper video {
             width: 100%;
             height: 100%;
@@ -309,11 +300,7 @@
     </div>
 
     <div class="video-wrapper" id="videoWrapper">
-        {% if film.platform == 'direct' %}
-            <video id="videoPlayer" src="{{ film.video_url }}" controls autoplay playsinline webkit-playsinline style="width:100%;height:100%"></video>
-        {% else %}
-            <iframe id="videoPlayer" src="{{ film.video_url }}" allow="autoplay; fullscreen" allowfullscreen></iframe>
-        {% endif %}
+        <video id="videoPlayer" src="" controls autoplay playsinline webkit-playsinline style="width:100%;height:100%"></video>
     </div>
 
     <!-- SENSOR BOSHQARUV ZONALARI -->
@@ -354,7 +341,6 @@
         const errorMsg = document.getElementById('errorMsg');
         const backBtn = document.getElementById('backBtn');
         const fullscreenBtn = document.getElementById('fullscreenBtn');
-        const videoWrapper = document.getElementById('videoWrapper');
         const videoPlayer = document.getElementById('videoPlayer');
         const progressFilled = document.getElementById('progressFilled');
         
@@ -368,9 +354,41 @@
         const centerHint = document.getElementById('centerHint');
         
         let isPlaying = true;
-        let currentVideo = null;
-        let isIframe = true;
         let hideHintsTimer = null;
+        
+        // ============ VIDEO URL NI OLISH ============
+        // URL dan film kodini olish
+        const path = window.location.pathname;
+        const kod = path.split('/').pop();
+        
+        // Direct MP4 URL ni olish uchun API ga so'rov
+        fetch(`/api/direct/${kod}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.exists && data.direct_url) {
+                    // Video player ga MP4 URL ni o'rnatish
+                    videoPlayer.src = data.direct_url;
+                    videoPlayer.load();
+                    videoPlayer.play().catch(e => console.log('Autoplay blocked:', e));
+                    
+                    // Yuklashni yashirish
+                    setTimeout(() => {
+                        loading.classList.add('hide');
+                    }, 1000);
+                } else {
+                    showError('Video topilmadi!');
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 2000);
+                }
+            })
+            .catch(err => {
+                console.error('Error:', err);
+                showError('Video yuklashda xatolik!');
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 2000);
+            });
         
         function showHint(element, show = true) {
             if (show) {
@@ -392,86 +410,62 @@
             setTimeout(() => errorMsg.classList.remove('show'), 4000);
         }
         
-        // Yuklash
-        setTimeout(() => {
-            loading.classList.add('hide');
-        }, 1500);
-        
         // Orqaga qaytish
         backBtn.addEventListener('click', () => {
             window.location.href = '/';
         });
         
         // ============ VIDEO BOSHQARUV FUNKSIYALARI ============
-        function getVideoElement() {
-            if (videoPlayer && videoPlayer.tagName === 'VIDEO') {
-                isIframe = false;
-                return videoPlayer;
-            }
-            isIframe = true;
-            return null;
-        }
-        
         function togglePlayPause() {
-            const video = getVideoElement();
-            if (video && !isIframe) {
-                if (video.paused) {
-                    video.play();
-                    isPlaying = true;
-                    centerHint.innerHTML = '<i class="fas fa-pause"></i>';
-                } else {
-                    video.pause();
-                    isPlaying = false;
-                    centerHint.innerHTML = '<i class="fas fa-play"></i>';
-                }
-                showHint(centerHint, true);
+            if (videoPlayer.paused) {
+                videoPlayer.play();
+                isPlaying = true;
+                centerHint.innerHTML = '<i class="fas fa-pause"></i>';
+            } else {
+                videoPlayer.pause();
+                isPlaying = false;
+                centerHint.innerHTML = '<i class="fas fa-play"></i>';
             }
+            showHint(centerHint, true);
         }
         
         function seekBackward() {
-            const video = getVideoElement();
-            if (video && !isIframe) {
-                video.currentTime = Math.max(0, video.currentTime - 10);
-                showHint(leftHint, true);
-                updateProgress();
-            }
+            videoPlayer.currentTime = Math.max(0, videoPlayer.currentTime - 10);
+            showHint(leftHint, true);
+            updateProgress();
         }
         
         function seekForward() {
-            const video = getVideoElement();
-            if (video && !isIframe) {
-                video.currentTime = Math.min(video.duration, video.currentTime + 10);
-                showHint(rightHint, true);
-                updateProgress();
-            }
+            videoPlayer.currentTime = Math.min(videoPlayer.duration, videoPlayer.currentTime + 10);
+            showHint(rightHint, true);
+            updateProgress();
         }
         
         function updateProgress() {
-            const video = getVideoElement();
-            if (video && !isIframe && video.duration) {
-                const percent = (video.currentTime / video.duration) * 100;
+            if (videoPlayer.duration) {
+                const percent = (videoPlayer.currentTime / videoPlayer.duration) * 100;
                 progressFilled.style.width = percent + '%';
             }
         }
         
         // Progressni yangilash
-        if (videoPlayer && videoPlayer.tagName === 'VIDEO') {
-            videoPlayer.addEventListener('timeupdate', updateProgress);
-            videoPlayer.addEventListener('loadedmetadata', () => {
-                progressFilled.style.width = '0%';
-            });
-            videoPlayer.addEventListener('play', () => {
-                isPlaying = true;
-                centerHint.innerHTML = '<i class="fas fa-pause"></i>';
-            });
-            videoPlayer.addEventListener('pause', () => {
-                isPlaying = false;
-                centerHint.innerHTML = '<i class="fas fa-play"></i>';
-            });
-        }
+        videoPlayer.addEventListener('timeupdate', updateProgress);
+        videoPlayer.addEventListener('loadedmetadata', () => {
+            progressFilled.style.width = '0%';
+        });
+        videoPlayer.addEventListener('play', () => {
+            isPlaying = true;
+            centerHint.innerHTML = '<i class="fas fa-pause"></i>';
+        });
+        videoPlayer.addEventListener('pause', () => {
+            isPlaying = false;
+            centerHint.innerHTML = '<i class="fas fa-play"></i>';
+        });
+        videoPlayer.addEventListener('error', () => {
+            showError('Video yuklanmadi!');
+        });
         
         // ============ SENSOR BOSHQARUV (TELEFON UCHUN) ============
-        // Chapga surish (10 soniya orqaga)
         let touchStartX = 0;
         let touchStartY = 0;
         let touchEndX = 0;
@@ -497,7 +491,6 @@
             }
         });
         
-        // O'ngga surish (10 soniya oldinga)
         gestureRight.addEventListener('touchstart', (e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -518,14 +511,12 @@
             }
         });
         
-        // Markazga bosish (play/pause)
         gestureCenter.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
             togglePlayPause();
         });
         
-        // Yuqoriga surish (full screen)
         let topTouchStart = 0;
         gestureTop.addEventListener('touchstart', (e) => {
             topTouchStart = e.touches[0].clientY;
@@ -566,13 +557,6 @@
             }
         });
         
-        // Iframe xatoligi
-        if (videoPlayer && videoPlayer.tagName === 'IFRAME') {
-            videoPlayer.onload = () => {
-                setTimeout(() => loading.classList.add('hide'), 500);
-            };
-        }
-        
         // Klaviatura
         document.addEventListener('keydown', (e) => {
             if (e.key === ' ' || e.key === 'Space') {
@@ -588,12 +572,13 @@
         });
         
         // Chap chetidan surish orqaga qaytish
+        let edgeTouchStart = 0;
         document.addEventListener('touchstart', (e) => {
-            touchStartX = e.touches[0].clientX;
+            edgeTouchStart = e.touches[0].clientX;
         });
         document.addEventListener('touchend', (e) => {
             const touchEnd = e.changedTouches[0].clientX;
-            if (touchStartX < 30 && touchEnd > touchStartX + 60) {
+            if (edgeTouchStart < 30 && touchEnd > edgeTouchStart + 60) {
                 window.location.href = '/';
             }
         });
