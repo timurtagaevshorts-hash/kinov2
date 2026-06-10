@@ -40,7 +40,8 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             sarlavha TEXT NOT NULL,
             tafsilot TEXT,
-            video_url TEXT NOT NULL,
+            embed_url TEXT NOT NULL,
+            video_id TEXT,
             platform TEXT,
             sana TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )''')
@@ -53,13 +54,63 @@ init_db()
 def allowed_file(filename, allowed):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed
 
+# ============ YORDAMCHI FUNKSIYALAR ============
+def get_embed_url(video_url):
+    """Video URL ni embed yoki to'g'ridan-to'g'ri URL ga o'zgartiradi"""
+    if not video_url:
+        return video_url
+    
+    # Google Drive
+    if 'drive.google.com' in video_url:
+        # File ID ni olish
+        match = re.search(r'/d/([a-zA-Z0-9_-]+)', video_url)
+        if match:
+            file_id = match.group(1)
+            return f'https://drive.google.com/file/d/{file_id}/preview'
+        return video_url
+    
+    # UZMedia embed
+    if 'uzmedia.tv/embed.html' in video_url:
+        return video_url
+    
+    # UZMedia oddiy sahifa
+    if 'uzmedia.tv' in video_url and 'embed' not in video_url:
+        return video_url
+    
+    # YouTube
+    if 'youtube.com' in video_url or 'youtu.be' in video_url:
+        # YouTube ID ni olish
+        patterns = [
+            r'(?:youtu\.be\/)([a-zA-Z0-9_-]+)',
+            r'(?:youtube\.com\/watch\?v=)([a-zA-Z0-9_-]+)',
+            r'(?:youtube\.com\/embed\/)([a-zA-Z0-9_-]+)',
+            r'(?:youtube\.com\/shorts\/)([a-zA-Z0-9_-]+)'
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, video_url)
+            if match:
+                video_id = match.group(1)
+                return f'https://www.youtube.com/embed/{video_id}?autoplay=1&rel=0'
+        return video_url
+    
+    # Boshqa URL lar (to'g'ridan-to'g'ri MP4 va h.k.)
+    return video_url
+
 # ============ PUBLIC ROUTES ============
 @app.route('/')
 def index():
     with get_db() as conn:
-        filmlar = conn.execute("SELECT * FROM films ORDER BY id DESC").fetchall()
-        filmlar = [dict(row) for row in filmlar]
-    return render_template('index.html', filmlar=filmlar)
+        shorts = conn.execute("SELECT * FROM shorts ORDER BY sana DESC").fetchall()
+        shorts = [dict(row) for row in shorts]
+        
+        # Shorts uchun embed_url tayyorlash
+        for short in shorts:
+            if short.get('embed_url'):
+                short['embed_url'] = get_embed_url(short['embed_url'])
+            else:
+                short['embed_url'] = short.get('video_url', '')
+    
+    return render_template('index.html', shorts=shorts)
 
 @app.route('/film/<kod>')
 def film_page(kod):
@@ -70,8 +121,11 @@ def film_page(kod):
         return "Film topilmadi!", 404
     
     film = dict(row)
-    # To'g'ridan-to'g'ri video URL ga redirect qilish
-    return redirect(film['video_url'])
+    video_url = film['video_url']
+    
+    # Google Drive va UZMedia havolalarini to'g'ridan-to'g'ri ochish
+    # Hech qanday player, hech qanday iframe - faqat redirect!
+    return redirect(video_url)
 
 # ============ API ============
 @app.route('/api/check/<kod>')
@@ -89,8 +143,11 @@ def admin():
     if session.get('admin_logged_in'):
         with get_db() as conn:
             filmlar = [dict(row) for row in conn.execute("SELECT * FROM films ORDER BY id DESC").fetchall()]
+            shorts_list = [dict(row) for row in conn.execute("SELECT * FROM shorts ORDER BY sana DESC").fetchall()]
             total_films = len(filmlar)
-        return render_template('admin.html', login=True, filmlar=filmlar, total_films=total_films)
+            total_shorts = len(shorts_list)
+        return render_template('admin.html', login=True, filmlar=filmlar, shorts_list=shorts_list,
+                               total_films=total_films, total_shorts=total_shorts)
     
     if request.method == 'POST':
         parol = request.form.get('parol')
@@ -122,13 +179,13 @@ def admin_add_film():
     if not video_url:
         return "Video URL manzili kerak!", 400
     
-    # Platformani aniqlash (oddiy)
+    # Platformani aniqlash
     platform = 'other'
-    if 'youtube' in video_url or 'youtu.be' in video_url:
+    if 'youtube.com' in video_url or 'youtu.be' in video_url:
         platform = 'youtube'
     elif 'drive.google.com' in video_url:
         platform = 'googledrive'
-    elif 'uzmedia' in video_url:
+    elif 'uzmedia.tv' in video_url:
         platform = 'uzmedia'
     
     rasm_nomi = None
@@ -167,17 +224,66 @@ def admin_delete_film(id):
     
     return redirect(url_for('admin'))
 
+@app.route('/admin/shorts', methods=['POST'])
+def admin_add_shorts():
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin'))
+    
+    sarlavha = request.form['sarlavha'].strip()
+    tafsilot = request.form.get('tafsilot', '')
+    video_url = request.form.get('video_url', '').strip()
+    
+    if not video_url:
+        return "Video URL manzili kerak!", 400
+    
+    # Platformani aniqlash
+    platform = 'other'
+    if 'youtube.com' in video_url or 'youtu.be' in video_url:
+        platform = 'youtube'
+    elif 'instagram.com' in video_url:
+        platform = 'instagram'
+    elif 'tiktok.com' in video_url:
+        platform = 'tiktok'
+    
+    # Embed URL tayyorlash
+    embed_url = get_embed_url(video_url)
+    
+    with get_db() as conn:
+        conn.execute("""INSERT INTO shorts 
+            (sarlavha, tafsilot, embed_url, video_id, platform) 
+            VALUES (?, ?, ?, ?, ?)""",
+            (sarlavha, tafsilot, embed_url, video_url, platform))
+        conn.commit()
+    
+    return redirect(url_for('admin'))
+
+@app.route('/admin/shorts/delete/<int:id>', methods=['POST'])
+def admin_delete_shorts(id):
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin'))
+    
+    with get_db() as conn:
+        conn.execute("DELETE FROM shorts WHERE id = ?", (id,))
+        conn.commit()
+    
+    return redirect(url_for('admin'))
+
 @app.route('/static/uploads/posters/<filename>')
 def serve_poster(filename):
     from flask import send_from_directory
     return send_from_directory(UPLOAD_FOLDER_POSTERS, filename)
+
+# ============ ERROR HANDLERS ============
+@app.errorhandler(404)
+def not_found(error):
+    return "<h1>404 - Sahifa topilmadi!</h1><a href='/'>Bosh sahifaga qaytish</a>", 404
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
     print(f"""
     ╔══════════════════════════════════════════════════════════════╗
     ║                                                              ║
-    ║     🎬 KINOTOP - SODDA REDIRECT VERSION 🎬                  ║
+    ║     🎬 KINOTOP - REDIRECT VERSION 🎬                        ║
     ║                                                              ║
     ╠══════════════════════════════════════════════════════════════╣
     ║                                                              ║
@@ -186,7 +292,15 @@ if __name__ == '__main__':
     ║  📝 ADMIN PASS:  Betmilion1                                 ║
     ║                                                              ║
     ║  💡 QANDAY ISHLAYDI:                                        ║
-    ║     /film/1234  →  redirect →  video_url                    ║
+    ║                                                              ║
+    ║     /film/1234  →  REDIRECT  →  Siz kiritgan URL            ║
+    ║                                                              ║
+    ║  📌 QO'LLAB-QUVVATLANADIGAN URL TURLARI:                    ║
+    ║     ✓ Google Drive  (drive.google.com/file/d/...)          ║
+    ║     ✓ UZMedia.tv    (uzmedia.tv/embed.html?file=...)       ║
+    ║     ✓ YouTube       (youtube.com/watch?v=...)              ║
+    ║     ✓ To'g'ridan-to'g'ri MP4                               ║
+    ║     ✓ Boshqa har qanday video havolasi                      ║
     ║                                                              ║
     ╚══════════════════════════════════════════════════════════════╝
     """)
