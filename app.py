@@ -18,6 +18,9 @@ os.makedirs(UPLOAD_FOLDER_POSTERS, exist_ok=True)
 ADMIN_PASSWORD = 'Betmilion1'
 ALLOWED_IMAGE = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
+# ============ YOUTUBE API KALITI ============
+YOUTUBE_API_KEY = 'AIzaSyB_Ebhv0Bxzk7xYsnQrDGj8TBdocpc4u0A'
+
 # ============ VIDEO PLATFORMALARINI ANIQLASH ============
 
 def detect_platform(url):
@@ -148,78 +151,102 @@ def get_short_embed_url(video_url):
     
     return video_url
 
-# ============ YOUTUBE KANALDAN SHORTS OLISH ============
+# ============ YOUTUBE API ORQALI SHORTS OLISH ============
 
-def extract_channel_id_from_url(url):
-    """YouTube kanal URL dan kanal ID yoki username olish"""
+def get_channel_id_from_username(username):
+    """Username orqali kanal ID olish"""
+    username = username.lstrip('@')
+    
+    url = "https://www.googleapis.com/youtube/v3/channels"
+    params = {
+        'part': 'id,snippet',
+        'forUsername': username,
+        'key': YOUTUBE_API_KEY
+    }
+    
+    try:
+        response = requests.get(url, params=params, timeout=10)
+        data = response.json()
+        
+        if data.get('items'):
+            return data['items'][0]['id']
+        return None
+    except Exception as e:
+        print(f"Username error: {e}")
+        return None
+
+def get_channel_id_from_url(url):
+    """Kanal URL dan kanal ID olish"""
     if not url:
         return None
-    
-    # Channel ID format (UC...)
-    match = re.search(r'channel/(UC[a-zA-Z0-9_-]+)', url)
-    if match:
-        return match.group(1)
     
     # @username format
     match = re.search(r'@([a-zA-Z0-9_-]+)', url)
     if match:
-        return match.group(1)
+        return get_channel_id_from_username(match.group(1))
     
-    # /c/ custom name
-    match = re.search(r'/c/([a-zA-Z0-9_-]+)', url)
+    # channel/UC... format
+    match = re.search(r'channel/(UC[a-zA-Z0-9_-]+)', url)
     if match:
         return match.group(1)
     
     return url
 
-def get_channel_shorts_rss(channel_identifier):
-    """YouTube RSS feed orqali shortslarni olish"""
-    try:
-        channel_id = channel_identifier
+def get_all_channel_shorts(channel_id, max_results=200):
+    """Kanalning barcha shortslarini API orqali olish"""
+    shorts_playlist_id = f"UUSH{channel_id}"
+    
+    all_shorts = []
+    next_page_token = None
+    
+    while True:
+        url = "https://www.googleapis.com/youtube/v3/playlistItems"
+        params = {
+            'part': 'snippet',
+            'playlistId': shorts_playlist_id,
+            'maxResults': 50,
+            'key': YOUTUBE_API_KEY
+        }
         
-        # Agar @ username bo'lsa, oldin kanal ID ni olish kerak
-        if channel_identifier.startswith('@'):
-            channel_url = f"https://www.youtube.com/{channel_identifier}"
-            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-            response = requests.get(channel_url, headers=headers, timeout=10)
+        if next_page_token:
+            params['pageToken'] = next_page_token
+        
+        try:
+            response = requests.get(url, params=params, timeout=10)
+            data = response.json()
             
-            match = re.search(r'"channelId":"(UC[a-zA-Z0-9_-]+)"', response.text)
-            if match:
-                channel_id = match.group(1)
-            else:
-                return []
-        
-        # RSS feed URL
-        rss_url = f"https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}"
-        response = requests.get(rss_url, timeout=10)
-        
-        if response.status_code != 200:
-            return []
-        
-        # XML parse qilish
-        root = ET.fromstring(response.content)
-        
-        shorts_list = []
-        for entry in root.findall('.//{http://www.w3.org/2005/Atom}entry'):
-            title_elem = entry.find('.//{http://www.w3.org/2005/Atom}title')
-            title = title_elem.text if title_elem is not None else 'No title'
+            if 'error' in data:
+                print(f"API xatosi: {data['error']['message']}")
+                break
             
-            video_id_elem = entry.find('.//{http://www.youtube.com/xml/schemas/2015}videoId')
-            if video_id_elem is None:
-                continue
-            video_id = video_id_elem.text
+            for item in data.get('items', []):
+                snippet = item.get('snippet', {})
+                resource_id = snippet.get('resourceId', {})
+                video_id = resource_id.get('videoId')
+                title = snippet.get('title', 'No title')
+                published_at = snippet.get('publishedAt', '')
+                thumbnails = snippet.get('thumbnails', {})
+                thumbnail = thumbnails.get('high', {}).get('url', '')
+                
+                if video_id:
+                    all_shorts.append({
+                        'video_id': video_id,
+                        'title': title,
+                        'published_at': published_at,
+                        'thumbnail': thumbnail,
+                        'embed_url': f"https://www.youtube.com/embed/{video_id}?autoplay=0&rel=0&modestbranding=1&showinfo=0&controls=1&playsinline=1",
+                        'short_url': f"https://youtube.com/shorts/{video_id}"
+                    })
             
-            shorts_list.append({
-                'video_id': video_id,
-                'title': title,
-                'embed_url': f"https://www.youtube.com/embed/{video_id}?autoplay=1&rel=0&modestbranding=1&showinfo=0&controls=0&fs=0&playsinline=1"
-            })
-        
-        return shorts_list
-        
-    except Exception as e:
-        print(f"RSS error: {e}")
-        return []
+            next_page_token = data.get('nextPageToken')
+            if not next_page_token or (max_results > 0 and len(all_shorts) >= max_results):
+                break
+                
+        except Exception as e:
+            print(f"API request error: {e}")
+            break
+    
+    return all_shorts
 
 # ============ DATABASE ============
 def get_db():
@@ -254,6 +281,7 @@ def init_db():
             embed_url TEXT NOT NULL,
             video_id TEXT,
             platform TEXT,
+            thumbnail TEXT,
             sana TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )''')
         
@@ -273,6 +301,10 @@ def init_db():
             conn.execute("ALTER TABLE films ADD COLUMN video_id TEXT")
         except:
             pass
+        try:
+            conn.execute("ALTER TABLE shorts ADD COLUMN thumbnail TEXT")
+        except:
+            pass
         
         conn.commit()
     print("✅ Database ready")
@@ -286,7 +318,7 @@ def allowed_file(filename, allowed):
 @app.route('/')
 def index():
     with get_db() as conn:
-        shorts = [dict(row) for row in conn.execute("SELECT * FROM shorts ORDER BY sana DESC LIMIT 30").fetchall()]
+        shorts = [dict(row) for row in conn.execute("SELECT * FROM shorts ORDER BY sana DESC LIMIT 50").fetchall()]
         featured = [dict(row) for row in conn.execute("""
             SELECT f.* FROM films f 
             JOIN featured_films ff ON f.id = ff.film_id 
@@ -445,9 +477,9 @@ def admin_add_shorts():
     
     return redirect(url_for('admin'))
 
-@app.route('/admin/fetch_channel_shorts', methods=['POST'])
-def fetch_channel_shorts():
-    """Kanal shortslarini olish va bazaga qo'shish"""
+@app.route('/admin/fetch_channel_shorts_api', methods=['POST'])
+def fetch_channel_shorts_api():
+    """API orqali kanal shortslarini olish va bazaga qo'shish"""
     if not session.get('admin_logged_in'):
         return jsonify({"success": False, "message": "Login kerak"}), 401
     
@@ -457,24 +489,27 @@ def fetch_channel_shorts():
     if not channel_url:
         return jsonify({"success": False, "message": "Kanal URL manzili kerak"}), 400
     
-    channel_id = extract_channel_id_from_url(channel_url)
+    # Kanal ID olish
+    channel_id = get_channel_id_from_url(channel_url)
     
     if not channel_id:
-        return jsonify({"success": False, "message": "Kanal ID aniqlanmadi!"}), 400
+        return jsonify({"success": False, "message": "Kanal ID aniqlanmadi! URL to'g'riligini tekshiring."}), 400
     
-    shorts_list = get_channel_shorts_rss(channel_id)
+    # Shortslarni API orqali olish
+    shorts_list = get_all_channel_shorts(channel_id)
     
     if not shorts_list:
-        return jsonify({"success": False, "message": "Shortslar topilmadi! Kanalda shortslar yo'q yoki RSS ishlamayapti."}), 404
+        return jsonify({"success": False, "message": "Shortslar topilmadi! Kanalda shortslar yo'q yoki API limit tugagan."}), 404
     
+    # Bazaga qo'shish
     added_count = 0
     with get_db() as conn:
         for short in shorts_list:
             try:
                 conn.execute("""
-                    INSERT INTO shorts (sarlavha, embed_url, video_id, platform)
-                    VALUES (?, ?, ?, ?)
-                """, (short['title'], short['embed_url'], short['video_id'], 'youtube'))
+                    INSERT INTO shorts (sarlavha, embed_url, video_id, platform, thumbnail, tafsilot)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """, (short['title'], short['embed_url'], short['video_id'], 'youtube', short.get('thumbnail', ''), f"📅 {short['published_at'][:10] if short['published_at'] else 'Tarix noma\'lum'}"))
                 added_count += 1
             except sqlite3.IntegrityError:
                 pass
@@ -568,7 +603,7 @@ if __name__ == '__main__':
     ║  📝 PASS:        Betmilion1                                              ║
     ║                                                                          ║
     ║  ✅ Qo'llab-quvvatlanadigan platformalar:                                 ║
-    ║     • YouTube / YouTube Shorts / Kanal Shortslari                        ║
+    ║     • YouTube / YouTube Shorts / Kanal Shortslari (API)                  ║
     ║     • Google Drive                                                      ║
     ║     • Uzmedia.tv                                                        ║
     ║     • VK Video                                                          ║
@@ -578,6 +613,9 @@ if __name__ == '__main__':
     ║     • Vimeo                                                             ║
     ║     • DailyMotion                                                       ║
     ║     • Direct MP4 / WebM / OGG                                           ║
+    ║                                                                          ║
+    ║  🎯 YouTube API Kaliti: Sozlandi                                         ║
+    ║  📺 Kanal shortslari API orqali to'liq qo'llab-quvvatlanadi              ║
     ║                                                                          ║
     ╚══════════════════════════════════════════════════════════════════════════╝
     """.format(port))
