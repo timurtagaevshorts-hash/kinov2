@@ -3,9 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Kinotop | Film tomosha qilish</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <title>Kinotop | Universal video pleer</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- HLS.js - M3U8 formatlar uchun -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
         * {
             margin: 0;
@@ -16,14 +18,14 @@
 
         body {
             background: #000;
-            font-family: 'Inter', sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             overflow: hidden;
             height: 100vh;
             width: 100%;
             position: fixed;
         }
 
-        .video-container {
+        .film-container {
             position: relative;
             width: 100%;
             height: 100vh;
@@ -38,9 +40,9 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            overflow: hidden;
         }
 
-        /* VIDEO - TO'LIQ EKRAN KATTA QILIB */
         .video-wrapper iframe {
             width: 100%;
             height: 100%;
@@ -54,167 +56,156 @@
             width: 100%;
             height: 100%;
             object-fit: contain;
+            background: #000;
         }
 
-        /* Orqaga qaytish tugmasi */
-        .back-btn {
-            position: fixed;
-            top: 15px;
-            left: 15px;
-            z-index: 100;
-            background: rgba(0,0,0,0.6);
-            backdrop-filter: blur(10px);
-            width: 48px;
-            height: 48px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 1.3rem;
-            cursor: pointer;
-            border: 1px solid rgba(255,255,255,0.2);
-            transition: all 0.2s ease;
-        }
-
-        .back-btn:active {
-            transform: scale(0.92);
-            background: rgba(102,126,234,0.8);
-        }
-
-        /* Fullscreen tugmasi */
-        .fullscreen-btn {
-            position: fixed;
-            bottom: 25px;
-            right: 20px;
-            z-index: 100;
-            background: rgba(0,0,0,0.6);
-            backdrop-filter: blur(10px);
-            width: 52px;
-            height: 52px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 1.4rem;
-            cursor: pointer;
-            border: 1px solid rgba(255,255,255,0.2);
-            transition: all 0.2s ease;
-        }
-
-        .fullscreen-btn:active {
-            transform: scale(0.92);
-            background: rgba(102,126,234,0.8);
-        }
-
-        /* ============ SENSOR BOSHQARUV (TELEFON UCHUN) ============ */
-        .gesture-area {
+        .controls-overlay {
             position: absolute;
             bottom: 0;
             left: 0;
             right: 0;
-            top: 0;
-            z-index: 15;
-            background: transparent;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            pointer-events: none;
-        }
-
-        .gesture-top {
-            pointer-events: auto;
-            height: 30%;
-            width: 100%;
-        }
-
-        .gesture-bottom {
-            pointer-events: auto;
-            height: 20%;
-            width: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .gesture-left, .gesture-right {
-            pointer-events: auto;
-            width: 20%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .gesture-left {
-            position: absolute;
-            left: 0;
-            top: 0;
-            height: 100%;
-        }
-
-        .gesture-right {
-            position: absolute;
-            right: 0;
-            top: 0;
-            height: 100%;
-        }
-
-        .gesture-center {
-            pointer-events: auto;
-            width: 60%;
-            height: 100%;
-            margin: 0 auto;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        /* Sensor ko'rsatkichlari (animatsiya) */
-        .gesture-hint {
-            background: rgba(0,0,0,0.5);
-            backdrop-filter: blur(20px);
-            padding: 8px 16px;
-            border-radius: 30px;
-            color: white;
-            font-size: 0.7rem;
-            display: flex;
-            align-items: center;
-            gap: 8px;
+            background: linear-gradient(to top, rgba(0,0,0,0.95), transparent);
+            padding: 20px;
+            z-index: 10;
             opacity: 0;
-            transition: opacity 0.3s;
+            transition: opacity 0.2s ease;
             pointer-events: none;
         }
 
-        .gesture-hint.show {
+        .controls-overlay.show {
             opacity: 1;
         }
 
-        .gesture-hint i {
-            font-size: 0.8rem;
+        .control-buttons {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 15px;
+            pointer-events: auto;
         }
 
-        /* Progress bar (sensor uchun) */
-        .video-progress {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
+        .control-btn {
             background: rgba(255,255,255,0.2);
-            z-index: 50;
+            backdrop-filter: blur(10px);
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: transform 0.2s, background 0.2s;
+            border: 1px solid rgba(255,255,255,0.3);
         }
 
-        .video-progress-filled {
+        .control-btn:active { transform: scale(0.95); }
+        .play-pause-btn {
+            width: 60px;
+            height: 60px;
+            font-size: 1.5rem;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+        }
+
+        .progress-container {
+            padding: 0 10px;
+            pointer-events: auto;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 2px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .progress-filled {
             width: 0%;
             height: 100%;
             background: linear-gradient(90deg, #667eea, #764ba2);
-            transition: width 0.1s linear;
+            border-radius: 2px;
+            position: relative;
         }
 
-        /* Yuklash */
-        .loading {
+        .progress-buffered {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            background: rgba(255,255,255,0.2);
+            border-radius: 2px;
+            width: 0%;
+        }
+
+        .time-info {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            color: white;
+            font-size: 0.7rem;
+            font-family: monospace;
+        }
+
+        .film-info {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
+            padding: 70px 20px 20px;
+            z-index: 10;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            pointer-events: none;
+        }
+
+        .film-info.show {
+            opacity: 1;
+        }
+
+        .film-title {
+            color: white;
+            font-size: 1.2rem;
+            font-weight: 700;
+        }
+
+        .film-desc {
+            color: rgba(255,255,255,0.7);
+            font-size: 0.8rem;
+        }
+
+        .back-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 20;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(10px);
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            text-decoration: none;
+            font-size: 1.2rem;
+            border: 1px solid rgba(255,255,255,0.2);
+            cursor: pointer;
+            transition: opacity 0.3s ease;
+            opacity: 1;
+        }
+        
+        .back-btn.hide {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .film-loading {
             position: fixed;
             top: 0;
             left: 0;
@@ -227,17 +218,17 @@
             justify-content: center;
             flex-direction: column;
             gap: 20px;
-            transition: opacity 0.3s;
+            transition: opacity 0.3s ease;
         }
 
-        .loading.hide {
+        .film-loading.hide {
             opacity: 0;
             pointer-events: none;
         }
 
-        .spinner {
-            width: 50px;
-            height: 50px;
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
             border: 3px solid rgba(102,126,234,0.3);
             border-top-color: #667eea;
             border-radius: 50%;
@@ -248,355 +239,581 @@
             to { transform: rotate(360deg); }
         }
 
-        .loading-text {
-            color: white;
-            font-size: 0.9rem;
-        }
-
-        .error-msg {
+        .error-message {
             position: fixed;
             bottom: 30px;
             left: 20px;
             right: 20px;
             background: rgba(220,53,69,0.95);
-            padding: 14px;
+            backdrop-filter: blur(10px);
+            padding: 15px;
             border-radius: 12px;
             color: white;
             text-align: center;
+            font-size: 0.8rem;
             z-index: 200;
             transform: translateY(100px);
-            transition: transform 0.3s;
-            font-size: 0.85rem;
+            transition: transform 0.3s ease;
         }
 
-        .error-msg.show {
+        .error-message.show {
             transform: translateY(0);
         }
 
-        /* Safe area */
-        @supports (padding: max(0px)) {
-            .back-btn {
-                top: max(15px, env(safe-area-inset-top));
-                left: max(15px, env(safe-area-inset-left));
-            }
-            .fullscreen-btn {
-                bottom: max(25px, env(safe-area-inset-bottom));
-                right: max(20px, env(safe-area-inset-right));
-            }
-        }
-
-        @media (max-width: 480px) {
-            .back-btn, .fullscreen-btn {
-                -webkit-backdrop-filter: blur(10px);
-            }
+        @media (max-width: 768px) {
+            .control-btn { width: 40px; height: 40px; font-size: 1rem; }
+            .play-pause-btn { width: 50px; height: 50px; font-size: 1.3rem; }
         }
     </style>
 </head>
 <body>
 
-<div class="loading" id="loading">
-    <div class="spinner"></div>
+<div class="film-loading" id="filmLoading">
+    <div class="loading-spinner"></div>
     <div class="loading-text">🎬 Film yuklanmoqda...</div>
 </div>
 
-<div class="video-container">
+<div class="film-container">
     <div class="back-btn" id="backBtn">
         <i class="fas fa-arrow-left"></i>
     </div>
     
-    <div class="fullscreen-btn" id="fullscreenBtn">
-        <i class="fas fa-expand"></i>
-    </div>
-
     <div class="video-wrapper" id="videoWrapper">
-        {% if film.platform == 'direct' %}
-            <video id="videoPlayer" src="{{ film.video_url }}" controls autoplay playsinline webkit-playsinline style="width:100%;height:100%"></video>
-        {% else %}
-            <iframe id="videoPlayer" src="{{ film.video_url }}" allow="autoplay; fullscreen" allowfullscreen></iframe>
-        {% endif %}
-    </div>
-
-    <!-- SENSOR BOSHQARUV ZONALARI -->
-    <div class="gesture-area">
-        <div class="gesture-top" id="gestureTop"></div>
-        <div class="gesture-bottom">
-            <div class="gesture-left" id="gestureLeft">
-                <div class="gesture-hint" id="leftHint">
-                    <i class="fas fa-backward"></i> 10s
+        <!-- Dinamik ravishda video yoki iframe qo'shiladi -->
+        
+        <div class="controls-overlay" id="controlsOverlay">
+            <div class="control-buttons">
+                <div class="control-btn" id="rewindBtn">
+                    <i class="fas fa-backward"></i>
                 </div>
-            </div>
-            <div class="gesture-center" id="gestureCenter">
-                <div class="gesture-hint" id="centerHint">
+                <div class="control-btn play-pause-btn" id="playPauseBtn">
                     <i class="fas fa-play"></i>
                 </div>
+                <div class="control-btn" id="forwardBtn">
+                    <i class="fas fa-forward"></i>
+                </div>
+                <div class="control-btn" id="fullscreenBtn">
+                    <i class="fas fa-expand"></i>
+                </div>
             </div>
-            <div class="gesture-right" id="gestureRight">
-                <div class="gesture-hint" id="rightHint">
-                    10s <i class="fas fa-forward"></i>
+            
+            <div class="progress-container">
+                <div class="progress-bar" id="progressBar">
+                    <div class="progress-buffered" id="progressBuffered"></div>
+                    <div class="progress-filled" id="progressFilled"></div>
+                </div>
+                <div class="time-info">
+                    <span id="currentTime">0:00</span>
+                    <span id="duration">0:00</span>
                 </div>
             </div>
         </div>
-    </div>
-
-    <!-- Progress bar -->
-    <div class="video-progress">
-        <div class="video-progress-filled" id="progressFilled"></div>
+        
+        <div class="film-info" id="filmInfo">
+            <div class="film-title" id="filmTitle">Loading...</div>
+            <div class="film-desc" id="filmDesc"></div>
+        </div>
     </div>
 </div>
 
-<div class="error-msg" id="errorMsg">
+<div class="error-message" id="errorMessage">
     <i class="fas fa-exclamation-triangle"></i> Video yuklashda xatolik
 </div>
 
 <script>
     (function() {
-        const loading = document.getElementById('loading');
-        const errorMsg = document.getElementById('errorMsg');
-        const backBtn = document.getElementById('backBtn');
-        const fullscreenBtn = document.getElementById('fullscreenBtn');
-        const videoWrapper = document.getElementById('videoWrapper');
-        const videoPlayer = document.getElementById('videoPlayer');
-        const progressFilled = document.getElementById('progressFilled');
-        
-        // Sensor elementlari
-        const gestureLeft = document.getElementById('gestureLeft');
-        const gestureRight = document.getElementById('gestureRight');
-        const gestureCenter = document.getElementById('gestureCenter');
-        const gestureTop = document.getElementById('gestureTop');
-        const leftHint = document.getElementById('leftHint');
-        const rightHint = document.getElementById('rightHint');
-        const centerHint = document.getElementById('centerHint');
-        
-        let isPlaying = true;
+        // ============ GLOBAL VARIABLES ============
+        const filmData = {{ film | tojson | safe }};
+        let currentPlayer = null;
         let currentVideo = null;
-        let isIframe = true;
-        let hideHintsTimer = null;
+        let isPlaying = false;
+        let controlsTimer = null;
+        let backTimer = null;
+        let progressInterval = null;
+        let hls = null;
+        let playerType = null; // 'youtube', 'vimeo', 'video', 'iframe'
         
-        function showHint(element, show = true) {
-            if (show) {
-                element.classList.add('show');
-                if (hideHintsTimer) clearTimeout(hideHintsTimer);
-                hideHintsTimer = setTimeout(() => {
-                    leftHint.classList.remove('show');
-                    rightHint.classList.remove('show');
-                    centerHint.classList.remove('show');
-                }, 800);
-            } else {
-                element.classList.remove('show');
+        // ============ HELPER FUNCTIONS ============
+        function extractYoutubeId(url) {
+            if (!url) return null;
+            const patterns = [
+                /(?:youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/,
+                /(?:youtu\.be\/)([a-zA-Z0-9_-]{11})/,
+                /(?:youtube\.com\/watch\?v=)([a-zA-Z0-9_-]{11})/,
+                /(?:youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
+                /^([a-zA-Z0-9_-]{11})$/
+            ];
+            for (let pattern of patterns) {
+                const match = url.match(pattern);
+                if (match) return match[1];
             }
-        }
-        
-        function showError(text) {
-            errorMsg.innerHTML = '<i class="fas fa-exclamation-triangle"></i> ' + text;
-            errorMsg.classList.add('show');
-            setTimeout(() => errorMsg.classList.remove('show'), 4000);
-        }
-        
-        // Yuklash
-        setTimeout(() => {
-            loading.classList.add('hide');
-        }, 1500);
-        
-        // Orqaga qaytish
-        backBtn.addEventListener('click', () => {
-            window.location.href = '/';
-        });
-        
-        // ============ VIDEO BOSHQARUV FUNKSIYALARI ============
-        function getVideoElement() {
-            if (videoPlayer && videoPlayer.tagName === 'VIDEO') {
-                isIframe = false;
-                return videoPlayer;
-            }
-            isIframe = true;
             return null;
         }
         
+        function extractVimeoId(url) {
+            const match = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+            return match ? match[1] : null;
+        }
+        
+        function extractGoogleDriveId(url) {
+            // Google Drive shareable link or file ID
+            const patterns = [
+                /drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/,
+                /drive\.google\.com\/open\?id=([a-zA-Z0-9_-]+)/,
+                /drive\.google\.com\/uc\?id=([a-zA-Z0-9_-]+)/,
+                /^([a-zA-Z0-9_-]{28,})$/
+            ];
+            for (let pattern of patterns) {
+                const match = url.match(pattern);
+                if (match) return match[1];
+            }
+            return null;
+        }
+        
+        function getGoogleDriveDirectUrl(fileId) {
+            return `https://drive.google.com/uc?export=download&id=${fileId}`;
+        }
+        
+        function isDirectVideoUrl(url) {
+            const patterns = /\.(mp4|webm|ogg|mov|avi|mkv|m4v)(\?.*)?$/i;
+            return patterns.test(url);
+        }
+        
+        function isM3u8Url(url) {
+            return url.includes('.m3u8') || url.includes('m3u8');
+        }
+        
+        function isUzmediaUrl(url) {
+            return url.includes('uzmedia.tv') || url.includes('files.uzmedia.tv');
+        }
+        
+        function formatTime(seconds) {
+            if (isNaN(seconds) || !seconds || seconds < 0) return '0:00';
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = Math.floor(seconds % 60);
+            
+            if (hours > 0) {
+                return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            }
+            return `${minutes}:${secs.toString().padStart(2, '0')}`;
+        }
+        
+        function showError(message) {
+            const errorMsg = document.getElementById('errorMessage');
+            errorMsg.innerHTML = '<i class="fas fa-exclamation-triangle"></i> ' + message;
+            errorMsg.classList.add('show');
+            setTimeout(() => {
+                errorMsg.classList.remove('show');
+            }, 4000);
+        }
+        
+        function hideLoading() {
+            setTimeout(() => {
+                document.getElementById('filmLoading').classList.add('hide');
+            }, 500);
+        }
+        
+        // ============ CONTROL FUNCTIONS ============
+        function hideControls() {
+            const controls = document.getElementById('controlsOverlay');
+            const filmInfo = document.getElementById('filmInfo');
+            controls.classList.remove('show');
+            filmInfo.classList.remove('show');
+        }
+        
+        function showControls() {
+            const controls = document.getElementById('controlsOverlay');
+            const filmInfo = document.getElementById('filmInfo');
+            controls.classList.add('show');
+            filmInfo.classList.add('show');
+            
+            if (controlsTimer) clearTimeout(controlsTimer);
+            controlsTimer = setTimeout(hideControls, 3000);
+        }
+        
+        function showBackButton() {
+            const backBtn = document.getElementById('backBtn');
+            backBtn.classList.remove('hide');
+            
+            if (backTimer) clearTimeout(backTimer);
+            backTimer = setTimeout(() => {
+                backBtn.classList.add('hide');
+            }, 2000);
+        }
+        
         function togglePlayPause() {
-            const video = getVideoElement();
-            if (video && !isIframe) {
-                if (video.paused) {
-                    video.play();
+            if (playerType === 'video' && currentVideo) {
+                if (currentVideo.paused) {
+                    currentVideo.play();
                     isPlaying = true;
-                    centerHint.innerHTML = '<i class="fas fa-pause"></i>';
+                    document.getElementById('playPauseBtn').innerHTML = '<i class="fas fa-pause"></i>';
                 } else {
-                    video.pause();
+                    currentVideo.pause();
                     isPlaying = false;
-                    centerHint.innerHTML = '<i class="fas fa-play"></i>';
+                    document.getElementById('playPauseBtn').innerHTML = '<i class="fas fa-play"></i>';
                 }
-                showHint(centerHint, true);
+            } else if (playerType === 'youtube' && currentPlayer) {
+                try {
+                    if (isPlaying) {
+                        currentPlayer.pauseVideo();
+                        document.getElementById('playPauseBtn').innerHTML = '<i class="fas fa-play"></i>';
+                        isPlaying = false;
+                    } else {
+                        currentPlayer.playVideo();
+                        document.getElementById('playPauseBtn').innerHTML = '<i class="fas fa-pause"></i>';
+                        isPlaying = true;
+                    }
+                } catch(e) {}
             }
+            showControls();
         }
         
-        function seekBackward() {
-            const video = getVideoElement();
-            if (video && !isIframe) {
-                video.currentTime = Math.max(0, video.currentTime - 10);
-                showHint(leftHint, true);
+        function seek(seconds) {
+            if (playerType === 'video' && currentVideo) {
+                currentVideo.currentTime = Math.max(0, Math.min(currentVideo.duration, currentVideo.currentTime + seconds));
                 updateProgress();
+            } else if (playerType === 'youtube' && currentPlayer) {
+                try {
+                    const currentTime = currentPlayer.getCurrentTime();
+                    const duration = currentPlayer.getDuration();
+                    let newTime = currentTime + seconds;
+                    newTime = Math.max(0, Math.min(newTime, duration));
+                    currentPlayer.seekTo(newTime, true);
+                } catch(e) {}
             }
+            showControls();
         }
         
-        function seekForward() {
-            const video = getVideoElement();
-            if (video && !isIframe) {
-                video.currentTime = Math.min(video.duration, video.currentTime + 10);
-                showHint(rightHint, true);
-                updateProgress();
+        function seekToPercent(percent) {
+            if (playerType === 'video' && currentVideo && currentVideo.duration) {
+                currentVideo.currentTime = currentVideo.duration * percent;
+            } else if (playerType === 'youtube' && currentPlayer) {
+                try {
+                    const duration = currentPlayer.getDuration();
+                    if (duration > 0) {
+                        currentPlayer.seekTo(duration * percent, true);
+                    }
+                } catch(e) {}
             }
+            showControls();
+        }
+        
+        function toggleFullScreen() {
+            const wrapper = document.getElementById('videoWrapper');
+            
+            if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+                if (wrapper.requestFullscreen) wrapper.requestFullscreen();
+                else if (wrapper.webkitRequestFullscreen) wrapper.webkitRequestFullscreen();
+                document.getElementById('fullscreenBtn').innerHTML = '<i class="fas fa-compress"></i>';
+            } else {
+                if (document.exitFullscreen) document.exitFullscreen();
+                else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+                document.getElementById('fullscreenBtn').innerHTML = '<i class="fas fa-expand"></i>';
+            }
+            showControls();
         }
         
         function updateProgress() {
-            const video = getVideoElement();
-            if (video && !isIframe && video.duration) {
-                const percent = (video.currentTime / video.duration) * 100;
-                progressFilled.style.width = percent + '%';
+            if (playerType === 'video' && currentVideo && currentVideo.duration) {
+                const percent = (currentVideo.currentTime / currentVideo.duration) * 100;
+                document.getElementById('progressFilled').style.width = percent + '%';
+                document.getElementById('currentTime').textContent = formatTime(currentVideo.currentTime);
+                document.getElementById('duration').textContent = formatTime(currentVideo.duration);
+                
+                if (currentVideo.buffered.length > 0) {
+                    const buffered = (currentVideo.buffered.end(currentVideo.buffered.length - 1) / currentVideo.duration) * 100;
+                    document.getElementById('progressBuffered').style.width = buffered + '%';
+                }
+            } else if (playerType === 'youtube' && currentPlayer) {
+                try {
+                    const currentTime = currentPlayer.getCurrentTime();
+                    const duration = currentPlayer.getDuration();
+                    if (duration > 0) {
+                        const percent = (currentTime / duration) * 100;
+                        document.getElementById('progressFilled').style.width = percent + '%';
+                        document.getElementById('currentTime').textContent = formatTime(currentTime);
+                        document.getElementById('duration').textContent = formatTime(duration);
+                    }
+                    if (currentPlayer.getVideoLoadedFraction) {
+                        const buffered = currentPlayer.getVideoLoadedFraction() * 100;
+                        document.getElementById('progressBuffered').style.width = buffered + '%';
+                    }
+                } catch(e) {}
             }
         }
         
-        // Progressni yangilash
-        if (videoPlayer && videoPlayer.tagName === 'VIDEO') {
-            videoPlayer.addEventListener('timeupdate', updateProgress);
-            videoPlayer.addEventListener('loadedmetadata', () => {
-                progressFilled.style.width = '0%';
-            });
-            videoPlayer.addEventListener('play', () => {
+        // ============ VIDEO EVENT HANDLERS ============
+        function setupVideoEvents(video) {
+            video.addEventListener('play', () => {
                 isPlaying = true;
-                centerHint.innerHTML = '<i class="fas fa-pause"></i>';
+                document.getElementById('playPauseBtn').innerHTML = '<i class="fas fa-pause"></i>';
             });
-            videoPlayer.addEventListener('pause', () => {
+            video.addEventListener('pause', () => {
                 isPlaying = false;
-                centerHint.innerHTML = '<i class="fas fa-play"></i>';
+                document.getElementById('playPauseBtn').innerHTML = '<i class="fas fa-play"></i>';
+            });
+            video.addEventListener('timeupdate', updateProgress);
+            video.addEventListener('loadedmetadata', () => {
+                document.getElementById('duration').textContent = formatTime(video.duration);
+                hideLoading();
+            });
+            video.addEventListener('canplay', () => {
+                hideLoading();
+            });
+            video.addEventListener('error', (e) => {
+                console.error('Video error:', e);
+                showError('Video yuklashda xatolik');
+                hideLoading();
             });
         }
         
-        // ============ SENSOR BOSHQARUV (TELEFON UCHUN) ============
-        // Chapga surish (10 soniya orqaga)
-        let touchStartX = 0;
-        let touchStartY = 0;
-        let touchEndX = 0;
-        let touchEndY = 0;
-        
-        gestureLeft.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            touchStartX = e.touches[0].clientX;
-            touchStartY = e.touches[0].clientY;
-        });
-        
-        gestureLeft.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            touchEndX = e.changedTouches[0].clientX;
-            touchEndY = e.changedTouches[0].clientY;
-            const diffX = touchStartX - touchEndX;
-            const diffY = Math.abs(touchStartY - touchEndY);
+        // ============ LOAD VIDEO BY TYPE ============
+        function loadVideo() {
+            const wrapper = document.getElementById('videoWrapper');
+            const videoUrl = filmData.video_url || filmData.embed_url;
             
-            if (diffX > 30 && diffY < 50) {
-                seekBackward();
+            if (!videoUrl) {
+                hideLoading();
+                showError('Video URL topilmadi!');
+                return;
             }
-        });
-        
-        // O'ngga surish (10 soniya oldinga)
-        gestureRight.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            touchStartX = e.touches[0].clientX;
-            touchStartY = e.touches[0].clientY;
-        });
-        
-        gestureRight.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            touchEndX = e.changedTouches[0].clientX;
-            touchEndY = e.changedTouches[0].clientY;
-            const diffX = touchEndX - touchStartX;
-            const diffY = Math.abs(touchStartY - touchEndY);
             
-            if (diffX > 30 && diffY < 50) {
-                seekForward();
-            }
-        });
-        
-        // Markazga bosish (play/pause)
-        gestureCenter.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            togglePlayPause();
-        });
-        
-        // Yuqoriga surish (full screen)
-        let topTouchStart = 0;
-        gestureTop.addEventListener('touchstart', (e) => {
-            topTouchStart = e.touches[0].clientY;
-        });
-        
-        gestureTop.addEventListener('touchend', (e) => {
-            const topTouchEnd = e.changedTouches[0].clientY;
-            if (topTouchStart - topTouchEnd > 50) {
-                toggleFullScreen();
-            }
-        });
-        
-        // ============ FULL SCREEN ============
-        function toggleFullScreen() {
-            const container = document.querySelector('.video-container');
-            if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-                if (container.requestFullscreen) {
-                    container.requestFullscreen();
-                } else if (container.webkitRequestFullscreen) {
-                    container.webkitRequestFullscreen();
+            document.getElementById('filmTitle').textContent = filmData.sarlavha || filmData.nomi || 'Film';
+            document.getElementById('filmDesc').textContent = filmData.tafsilot || filmData.description || '';
+            
+            // Clear wrapper
+            wrapper.innerHTML = '';
+            wrapper.appendChild(document.getElementById('controlsOverlay'));
+            wrapper.appendChild(document.getElementById('filmInfo'));
+            
+            // Check video type
+            const youtubeId = extractYoutubeId(videoUrl);
+            const vimeoId = extractVimeoId(videoUrl);
+            const googleDriveId = extractGoogleDriveId(videoUrl);
+            
+            if (youtubeId) {
+                // YouTube player
+                playerType = 'youtube';
+                const iframe = document.createElement('iframe');
+                iframe.id = 'youtubePlayer';
+                iframe.src = `https://www.youtube.com/embed/${youtubeId}?autoplay=1&controls=0&modestbranding=1&showinfo=0&rel=0&playsinline=1&enablejsapi=1`;
+                iframe.allow = 'autoplay; fullscreen; encrypted-media; picture-in-picture';
+                iframe.allowFullscreen = true;
+                wrapper.insertBefore(iframe, wrapper.firstChild);
+                
+                // Load YouTube API
+                window.onYouTubeIframeAPIReady = () => {
+                    currentPlayer = new YT.Player('youtubePlayer', {
+                        events: {
+                            onReady: () => {
+                                hideLoading();
+                                isPlaying = true;
+                                document.getElementById('playPauseBtn').innerHTML = '<i class="fas fa-pause"></i>';
+                                if (progressInterval) clearInterval(progressInterval);
+                                progressInterval = setInterval(updateProgress, 1000);
+                            },
+                            onStateChange: (event) => {
+                                if (event.data == YT.PlayerState.PLAYING) {
+                                    isPlaying = true;
+                                    document.getElementById('playPauseBtn').innerHTML = '<i class="fas fa-pause"></i>';
+                                } else if (event.data == YT.PlayerState.PAUSED) {
+                                    isPlaying = false;
+                                    document.getElementById('playPauseBtn').innerHTML = '<i class="fas fa-play"></i>';
+                                }
+                            },
+                            onError: () => {
+                                showError('YouTube video xatosi');
+                                hideLoading();
+                            }
+                        }
+                    });
+                };
+                
+                if (!window.YT) {
+                    const tag = document.createElement('script');
+                    tag.src = 'https://www.youtube.com/iframe_api';
+                    document.head.appendChild(tag);
+                } else {
+                    window.onYouTubeIframeAPIReady();
                 }
-                fullscreenBtn.innerHTML = '<i class="fas fa-compress"></i>';
+                
+            } else if (vimeoId) {
+                // Vimeo player
+                playerType = 'iframe';
+                const iframe = document.createElement('iframe');
+                iframe.src = `https://player.vimeo.com/video/${vimeoId}?autoplay=1&controls=1&playsinline=1`;
+                iframe.allow = 'autoplay; fullscreen; picture-in-picture';
+                iframe.allowFullscreen = true;
+                wrapper.insertBefore(iframe, wrapper.firstChild);
+                hideLoading();
+                
+            } else if (googleDriveId) {
+                // Google Drive video
+                playerType = 'video';
+                const video = document.createElement('video');
+                video.id = 'videoPlayer';
+                video.src = getGoogleDriveDirectUrl(googleDriveId);
+                video.controls = false;
+                video.autoplay = true;
+                video.playsInline = true;
+                video.style.width = '100%';
+                video.style.height = '100%';
+                video.style.objectFit = 'contain';
+                wrapper.insertBefore(video, wrapper.firstChild);
+                currentVideo = video;
+                setupVideoEvents(video);
+                video.load();
+                
+            } else if (isDirectVideoUrl(videoUrl)) {
+                // Direct MP4/WebM/OGG
+                playerType = 'video';
+                const video = document.createElement('video');
+                video.id = 'videoPlayer';
+                video.src = videoUrl;
+                video.controls = false;
+                video.autoplay = true;
+                video.playsInline = true;
+                video.style.width = '100%';
+                video.style.height = '100%';
+                video.style.objectFit = 'contain';
+                wrapper.insertBefore(video, wrapper.firstChild);
+                currentVideo = video;
+                setupVideoEvents(video);
+                video.load();
+                
+            } else if (isM3u8Url(videoUrl)) {
+                // HLS/M3U8 stream
+                playerType = 'video';
+                const video = document.createElement('video');
+                video.id = 'videoPlayer';
+                video.controls = false;
+                video.autoplay = true;
+                video.playsInline = true;
+                video.style.width = '100%';
+                video.style.height = '100%';
+                video.style.objectFit = 'contain';
+                wrapper.insertBefore(video, wrapper.firstChild);
+                currentVideo = video;
+                
+                if (Hls.isSupported()) {
+                    hls = new Hls();
+                    hls.loadSource(videoUrl);
+                    hls.attachMedia(video);
+                    hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                        video.play();
+                        hideLoading();
+                    });
+                    hls.on(Hls.Events.ERROR, () => {
+                        showError('M3U8 video xatosi');
+                        hideLoading();
+                    });
+                } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                    video.src = videoUrl;
+                    video.addEventListener('loadedmetadata', () => hideLoading());
+                }
+                setupVideoEvents(video);
+                
+            } else if (isUzmediaUrl(videoUrl)) {
+                // Uzmedia.tv - use iframe with their embed
+                playerType = 'iframe';
+                let embedUrl = videoUrl;
+                if (!videoUrl.includes('embed')) {
+                    const fileParam = encodeURIComponent(videoUrl);
+                    embedUrl = `https://uzmedia.tv/embed.html?file=${fileParam}`;
+                }
+                const iframe = document.createElement('iframe');
+                iframe.src = embedUrl;
+                iframe.allow = 'autoplay; fullscreen; encrypted-media';
+                iframe.allowFullscreen = true;
+                wrapper.insertBefore(iframe, wrapper.firstChild);
+                hideLoading();
+                
             } else {
-                if (document.exitFullscreen) {
-                    document.exitFullscreen();
-                } else if (document.webkitExitFullscreen) {
-                    document.webkitExitFullscreen();
-                }
-                fullscreenBtn.innerHTML = '<i class="fas fa-expand"></i>';
+                // Generic iframe embed
+                playerType = 'iframe';
+                const iframe = document.createElement('iframe');
+                iframe.src = videoUrl;
+                iframe.allow = 'autoplay; fullscreen; encrypted-media; picture-in-picture';
+                iframe.allowFullscreen = true;
+                wrapper.insertBefore(iframe, wrapper.firstChild);
+                hideLoading();
             }
+            
+            // Auto hide back button after 2 seconds
+            setTimeout(() => {
+                document.getElementById('backBtn').classList.add('hide');
+            }, 2000);
         }
         
-        fullscreenBtn.addEventListener('click', toggleFullScreen);
-        
-        document.addEventListener('fullscreenchange', () => {
-            if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-                fullscreenBtn.innerHTML = '<i class="fas fa-expand"></i>';
-            }
-        });
-        
-        // Iframe xatoligi
-        if (videoPlayer && videoPlayer.tagName === 'IFRAME') {
-            videoPlayer.onload = () => {
-                setTimeout(() => loading.classList.add('hide'), 500);
-            };
-        }
-        
-        // Klaviatura
-        document.addEventListener('keydown', (e) => {
-            if (e.key === ' ' || e.key === 'Space') {
+        // ============ EVENT LISTENERS ============
+        function setupEventListeners() {
+            const wrapper = document.getElementById('videoWrapper');
+            const backBtn = document.getElementById('backBtn');
+            
+            wrapper.addEventListener('mousemove', () => {
+                showControls();
+                showBackButton();
+            });
+            
+            wrapper.addEventListener('click', () => {
+                showControls();
+                showBackButton();
+            });
+            
+            wrapper.addEventListener('touchstart', () => {
+                showControls();
+                showBackButton();
+            });
+            
+            wrapper.addEventListener('dblclick', (e) => {
                 e.preventDefault();
-                togglePlayPause();
-            } else if (e.key === 'ArrowLeft') {
-                seekBackward();
-            } else if (e.key === 'ArrowRight') {
-                seekForward();
-            } else if (e.key === 'f' || e.key === 'F') {
                 toggleFullScreen();
-            }
-        });
-        
-        // Chap chetidan surish orqaga qaytish
-        document.addEventListener('touchstart', (e) => {
-            touchStartX = e.touches[0].clientX;
-        });
-        document.addEventListener('touchend', (e) => {
-            const touchEnd = e.changedTouches[0].clientX;
-            if (touchStartX < 30 && touchEnd > touchStartX + 60) {
+            });
+            
+            backBtn.addEventListener('click', () => {
+                if (progressInterval) clearInterval(progressInterval);
+                if (hls) hls.destroy();
                 window.location.href = '/';
-            }
-        });
+            });
+            
+            document.getElementById('playPauseBtn').addEventListener('click', togglePlayPause);
+            document.getElementById('fullscreenBtn').addEventListener('click', toggleFullScreen);
+            document.getElementById('rewindBtn').addEventListener('click', () => seek(-10));
+            document.getElementById('forwardBtn').addEventListener('click', () => seek(10));
+            document.getElementById('progressBar').addEventListener('click', (e) => {
+                const rect = document.getElementById('progressBar').getBoundingClientRect();
+                const pos = (e.clientX - rect.left) / rect.width;
+                seekToPercent(pos);
+            });
+            
+            // Keyboard controls
+            document.addEventListener('keydown', (e) => {
+                if (e.key === ' ' || e.key === 'Space' || e.key === 'k' || e.key === 'K') {
+                    e.preventDefault();
+                    togglePlayPause();
+                } else if (e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    seek(-10);
+                } else if (e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    seek(10);
+                } else if (e.key === 'f' || e.key === 'F') {
+                    e.preventDefault();
+                    toggleFullScreen();
+                } else if (e.key === 'Escape') {
+                    if (document.fullscreenElement) {
+                        document.exitFullscreen();
+                    }
+                }
+                showControls();
+                showBackButton();
+            });
+        }
+        
+        // ============ START ============
+        setupEventListeners();
+        loadVideo();
     })();
 </script>
 </body>
