@@ -2,6 +2,8 @@ import os
 import sqlite3
 import re
 import urllib.parse
+import requests
+import xml.etree.ElementTree as ET
 from flask import Flask, render_template, request, redirect, url_for, send_from_directory, jsonify, session, Response
 from datetime import datetime
 from functools import wraps
@@ -76,21 +78,15 @@ def extract_google_drive_id(url):
 
 def extract_uzmedia_id(url):
     """Uzmedia.tv dan video ID yoki fayl manzilini olish"""
-    # Embed.html?file=... format
     if 'embed.html' in url:
         match = re.search(r'file=(.+?)(?:&|$)', url)
         if match:
             return urllib.parse.unquote(match.group(1))
-    
-    # To'g'ridan-to'g'ri MP4 fayl
     if '.mp4' in url or 'files.uzmedia.tv' in url:
         return url
-    
-    # Film ID
     match = re.search(r'/(\d+)', url)
     if match:
         return match.group(1)
-    
     return None
 
 def get_redirect_url(video_url):
@@ -100,21 +96,18 @@ def get_redirect_url(video_url):
     
     platform = detect_platform(video_url)
     
-    # YouTube
     if platform == 'youtube':
         video_id = extract_youtube_id(video_url)
         if video_id:
             return f'https://www.youtube.com/embed/{video_id}?autoplay=1&rel=0&modestbranding=1&showinfo=0&controls=1&fs=1&playsinline=1'
         return video_url
     
-    # Google Drive
     if platform == 'googledrive':
         file_id = extract_google_drive_id(video_url)
         if file_id:
             return f'https://drive.google.com/file/d/{file_id}/preview'
         return video_url
     
-    # Uzmedia.tv
     if platform == 'uzmedia':
         video_id = extract_uzmedia_id(video_url)
         if video_id:
@@ -122,49 +115,8 @@ def get_redirect_url(video_url):
                 return f'https://uzmedia.tv/embed.html?file={urllib.parse.quote(video_id)}'
             elif video_id.isdigit():
                 return f'https://uzmedia.tv/embed/{video_id}'
-            else:
-                return video_url
         return video_url
     
-    # VK Video
-    if platform == 'vk':
-        # VK embed
-        match = re.search(r'video(-?\d+_\d+)', video_url)
-        if match:
-            parts = match.group(1).split('_')
-            if len(parts) == 2:
-                return f'https://vk.com/video_ext.php?oid={parts[0]}&id={parts[1]}&autoplay=1'
-        return video_url
-    
-    # Instagram
-    if platform == 'instagram':
-        match = re.search(r'instagram\.com/(?:p|reel)/([a-zA-Z0-9_-]+)', video_url)
-        if match:
-            return f'https://www.instagram.com/p/{match.group(1)}/embed'
-        return video_url
-    
-    # TikTok
-    if platform == 'tiktok':
-        match = re.search(r'tiktok\.com/@[\w]+\/video/(\d+)', video_url)
-        if match:
-            return f'https://www.tiktok.com/embed/v2/{match.group(1)}'
-        return video_url
-    
-    # Vimeo
-    if platform == 'vimeo':
-        match = re.search(r'vimeo\.com/(?:video/)?(\d+)', video_url)
-        if match:
-            return f'https://player.vimeo.com/video/{match.group(1)}?autoplay=1&playsinline=1'
-        return video_url
-    
-    # DailyMotion
-    if platform == 'dailymotion':
-        match = re.search(r'dailymotion\.com/video/([a-zA-Z0-9]+)', video_url)
-        if match:
-            return f'https://www.dailymotion.com/embed/video/{match.group(1)}?autoplay=1'
-        return video_url
-    
-    # Direct video yoki boshqa
     return video_url
 
 def get_short_embed_url(video_url):
@@ -174,31 +126,100 @@ def get_short_embed_url(video_url):
     
     platform = detect_platform(video_url)
     
-    # YouTube Shorts
     if platform == 'youtube':
         video_id = extract_youtube_id(video_url)
         if video_id:
             return f'https://www.youtube.com/embed/{video_id}?autoplay=1&rel=0&modestbranding=1&showinfo=0&controls=0&fs=0&playsinline=1'
     
-    # Instagram Reels
     if platform == 'instagram':
         match = re.search(r'instagram\.com/(?:p|reel)/([a-zA-Z0-9_-]+)', video_url)
         if match:
             return f'https://www.instagram.com/p/{match.group(1)}/embed'
     
-    # TikTok
     if platform == 'tiktok':
         match = re.search(r'tiktok\.com/@[\w]+\/video/(\d+)', video_url)
         if match:
             return f'https://www.tiktok.com/embed/v2/{match.group(1)}'
     
-    # Google Drive Shorts
     if platform == 'googledrive':
         file_id = extract_google_drive_id(video_url)
         if file_id:
             return f'https://drive.google.com/file/d/{file_id}/preview'
     
     return video_url
+
+# ============ YOUTUBE KANALDAN SHORTS OLISH ============
+
+def extract_channel_id_from_url(url):
+    """YouTube kanal URL dan kanal ID yoki username olish"""
+    if not url:
+        return None
+    
+    # Channel ID format (UC...)
+    match = re.search(r'channel/(UC[a-zA-Z0-9_-]+)', url)
+    if match:
+        return match.group(1)
+    
+    # @username format
+    match = re.search(r'@([a-zA-Z0-9_-]+)', url)
+    if match:
+        return match.group(1)
+    
+    # /c/ custom name
+    match = re.search(r'/c/([a-zA-Z0-9_-]+)', url)
+    if match:
+        return match.group(1)
+    
+    return url
+
+def get_channel_shorts_rss(channel_identifier):
+    """YouTube RSS feed orqali shortslarni olish"""
+    try:
+        channel_id = channel_identifier
+        
+        # Agar @ username bo'lsa, oldin kanal ID ni olish kerak
+        if channel_identifier.startswith('@'):
+            channel_url = f"https://www.youtube.com/{channel_identifier}"
+            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+            response = requests.get(channel_url, headers=headers, timeout=10)
+            
+            match = re.search(r'"channelId":"(UC[a-zA-Z0-9_-]+)"', response.text)
+            if match:
+                channel_id = match.group(1)
+            else:
+                return []
+        
+        # RSS feed URL
+        rss_url = f"https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}"
+        response = requests.get(rss_url, timeout=10)
+        
+        if response.status_code != 200:
+            return []
+        
+        # XML parse qilish
+        root = ET.fromstring(response.content)
+        
+        shorts_list = []
+        for entry in root.findall('.//{http://www.w3.org/2005/Atom}entry'):
+            title_elem = entry.find('.//{http://www.w3.org/2005/Atom}title')
+            title = title_elem.text if title_elem is not None else 'No title'
+            
+            video_id_elem = entry.find('.//{http://www.youtube.com/xml/schemas/2015}videoId')
+            if video_id_elem is None:
+                continue
+            video_id = video_id_elem.text
+            
+            shorts_list.append({
+                'video_id': video_id,
+                'title': title,
+                'embed_url': f"https://www.youtube.com/embed/{video_id}?autoplay=1&rel=0&modestbranding=1&showinfo=0&controls=0&fs=0&playsinline=1"
+            })
+        
+        return shorts_list
+        
+    except Exception as e:
+        print(f"RSS error: {e}")
+        return []
 
 # ============ DATABASE ============
 def get_db():
@@ -243,7 +264,7 @@ def init_db():
             featured_sana TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )''')
         
-        # Yangi ustunlar qo'shish (mavjud bo'lmasa)
+        # Yangi ustunlar qo'shish
         try:
             conn.execute("ALTER TABLE films ADD COLUMN embed_url TEXT")
         except:
@@ -283,7 +304,6 @@ def film_page(kod):
     
     film = dict(row)
     
-    # Embed URL tayyorlash
     if not film.get('embed_url'):
         film['embed_url'] = get_redirect_url(film['video_url'])
     
@@ -364,12 +384,10 @@ def admin_add_film():
     if not video_url:
         return "Video URL manzili kerak!", 400
     
-    # Platformani aniqlash
     platform = detect_platform(video_url)
     video_id = None
     embed_url = get_redirect_url(video_url)
     
-    # Video ID ni olish
     if platform == 'youtube':
         video_id = extract_youtube_id(video_url)
     elif platform == 'googledrive':
@@ -377,7 +395,6 @@ def admin_add_film():
     elif platform == 'uzmedia':
         video_id = extract_uzmedia_id(video_url)
     
-    # Rasm yuklash
     rasm_nomi = None
     if 'rasm' in request.files:
         rasm = request.files['rasm']
@@ -424,6 +441,59 @@ def admin_add_shorts():
             (sarlavha, tafsilot, embed_url, video_id, platform) 
             VALUES (?, ?, ?, ?, ?)""",
             (sarlavha, tafsilot, embed_url, video_id, platform))
+        conn.commit()
+    
+    return redirect(url_for('admin'))
+
+@app.route('/admin/fetch_channel_shorts', methods=['POST'])
+def fetch_channel_shorts():
+    """Kanal shortslarini olish va bazaga qo'shish"""
+    if not session.get('admin_logged_in'):
+        return jsonify({"success": False, "message": "Login kerak"}), 401
+    
+    data = request.get_json()
+    channel_url = data.get('channel_url', '').strip()
+    
+    if not channel_url:
+        return jsonify({"success": False, "message": "Kanal URL manzili kerak"}), 400
+    
+    channel_id = extract_channel_id_from_url(channel_url)
+    
+    if not channel_id:
+        return jsonify({"success": False, "message": "Kanal ID aniqlanmadi!"}), 400
+    
+    shorts_list = get_channel_shorts_rss(channel_id)
+    
+    if not shorts_list:
+        return jsonify({"success": False, "message": "Shortslar topilmadi! Kanalda shortslar yo'q yoki RSS ishlamayapti."}), 404
+    
+    added_count = 0
+    with get_db() as conn:
+        for short in shorts_list:
+            try:
+                conn.execute("""
+                    INSERT INTO shorts (sarlavha, embed_url, video_id, platform)
+                    VALUES (?, ?, ?, ?)
+                """, (short['title'], short['embed_url'], short['video_id'], 'youtube'))
+                added_count += 1
+            except sqlite3.IntegrityError:
+                pass
+        conn.commit()
+    
+    return jsonify({
+        "success": True,
+        "message": f"{added_count} ta short qo'shildi!",
+        "count": added_count
+    })
+
+@app.route('/admin/clear_shorts', methods=['POST'])
+def admin_clear_shorts():
+    """Barcha shortslarni tozalash"""
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin'))
+    
+    with get_db() as conn:
+        conn.execute("DELETE FROM shorts")
         conn.commit()
     
     return redirect(url_for('admin'))
@@ -490,7 +560,7 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
     print("""
     ╔══════════════════════════════════════════════════════════════════════════╗
-    ║                    🎬 KINOTOP - OPTIMIZED VERSION 🎬                      ║
+    ║                    🎬 KINOTOP - FULL VERSION 🎬                           ║
     ╠══════════════════════════════════════════════════════════════════════════╣
     ║                                                                          ║
     ║  🌐 PORT:        {}                                                       ║
@@ -498,7 +568,7 @@ if __name__ == '__main__':
     ║  📝 PASS:        Betmilion1                                              ║
     ║                                                                          ║
     ║  ✅ Qo'llab-quvvatlanadigan platformalar:                                 ║
-    ║     • YouTube / YouTube Shorts                                          ║
+    ║     • YouTube / YouTube Shorts / Kanal Shortslari                        ║
     ║     • Google Drive                                                      ║
     ║     • Uzmedia.tv                                                        ║
     ║     • VK Video                                                          ║
