@@ -1,16 +1,11 @@
 import os
 import sqlite3
 import re
-import urllib.parse
-import requests
-from flask import Flask, render_template, request, redirect, url_for, send_from_directory, jsonify, session, Response
-from datetime import datetime
+from flask import Flask, render_template, request, redirect, url_for, jsonify, session
 from functools import wraps
-import time
 
 app = Flask(__name__)
 app.secret_key = 'kinotop-secret-key-2024'
-app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_FOLDER_POSTERS = os.path.join(BASE_DIR, 'static/uploads/posters')
@@ -18,112 +13,6 @@ os.makedirs(UPLOAD_FOLDER_POSTERS, exist_ok=True)
 
 ADMIN_PASSWORD = 'Betmilion1'
 ALLOWED_IMAGE = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
-
-# ============ VIDEO PLATFORMALARINI ANIQLASH ============
-
-def detect_platform(url):
-    """URL ni tahlil qilib platformani aniqlaydi"""
-    url_lower = url.lower()
-    
-    if 'youtube.com' in url_lower or 'youtu.be' in url_lower:
-        return 'youtube'
-    if 'drive.google.com' in url_lower:
-        return 'googledrive'
-    if 'uzmedia.tv' in url_lower:
-        return 'uzmedia'
-    if 'vk.com' in url_lower:
-        return 'vk'
-    if 'uzmovi.com' in url_lower or 'uzmovi.uz' in url_lower:
-        return 'uzmovi'
-    if 'instagram.com' in url_lower:
-        return 'instagram'
-    if 'tiktok.com' in url_lower:
-        return 'tiktok'
-    if 'vimeo.com' in url_lower:
-        return 'vimeo'
-    if 'dailymotion.com' in url_lower or 'dai.ly' in url_lower:
-        return 'dailymotion'
-    if url_lower.endswith(('.mp4', '.webm', '.ogg', '.mov', '.mkv', '.m4v')):
-        return 'direct'
-    
-    return 'iframe'
-
-def extract_uzmedia_direct_url(url):
-    """Uzmedia.tv dan to'g'ridan-to'g'ri MP4 manzilini olish"""
-    # Agar embed.html?file=... ko'rinishida bo'lsa
-    if 'embed.html' in url:
-        match = re.search(r'file=(.+?)(?:&|$)', url)
-        if match:
-            return urllib.parse.unquote(match.group(1))
-    
-    # Agar to'g'ridan-to'g'ri MP4 bo'lsa
-    if '.mp4' in url or 'files.uzmedia.tv' in url:
-        return url
-    
-    # Agar film ID bo'lsa
-    match = re.search(r'/(\d+)', url)
-    if match:
-        return f"https://uzmedia.tv/files/{match.group(1)}.mp4"
-    
-    return None
-
-# ============ UZMEDIA.TV PROXY (ASOSIY YECHIM) ============
-@app.route('/proxy/uzmedia')
-def proxy_uzmedia():
-    """Uzmedia.tv video fayllari uchun proxy server - CORS va Referer muammosini hal qiladi"""
-    video_url = request.args.get('url', '')
-    if not video_url:
-        return "URL parameter required", 400
-    
-    # URL ni dekod qilish
-    video_url = urllib.parse.unquote(video_url)
-    
-    print(f"Proxy request for: {video_url}")
-    
-    try:
-        # Uzmedia.tv ga so'rov yuborish
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'video/mp4,video/webm,video/*',
-            'Accept-Language': 'uz,ru,en;q=0.9',
-            'Accept-Encoding': 'gzip, deflate',
-            'Referer': 'https://uzmedia.tv/',
-            'Origin': 'https://uzmedia.tv',
-            'Connection': 'keep-alive',
-            'Range': request.headers.get('Range', '')
-        }
-        
-        # Video faylni olish
-        resp = requests.get(video_url, headers=headers, stream=True, timeout=30, verify=False)
-        
-        if resp.status_code == 200 or resp.status_code == 206:
-            # CORS headerlari bilan qaytarish
-            response = Response(
-                resp.iter_content(chunk_size=8192),
-                status=resp.status_code,
-                content_type=resp.headers.get('content-type', 'video/mp4')
-            )
-            response.headers['Access-Control-Allow-Origin'] = '*'
-            response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
-            response.headers['Access-Control-Allow-Headers'] = 'Range'
-            response.headers['Accept-Ranges'] = 'bytes'
-            
-            # Content-Range headerini o'tkazish (agar mavjud bo'lsa)
-            if 'content-range' in resp.headers:
-                response.headers['Content-Range'] = resp.headers['content-range']
-            
-            print(f"Proxy success: {resp.status_code}")
-            return response
-        else:
-            print(f"Proxy failed: {resp.status_code}")
-            return f"Video topilmadi (status {resp.status_code})", 404
-            
-    except requests.exceptions.Timeout:
-        print("Proxy timeout")
-        return "So'rov vaqti o'tdi", 504
-    except Exception as e:
-        print(f"Proxy error: {str(e)}")
-        return f"Proxy xatosi: {str(e)}", 500
 
 # ============ DATABASE ============
 def get_db():
@@ -142,37 +31,20 @@ def init_db():
             yil TEXT,
             janr TEXT,
             rasm TEXT,
-            embed_url TEXT,
-            video_id TEXT,
+            video_url TEXT NOT NULL,
             platform TEXT,
-            thumbnail TEXT,
-            turi TEXT DEFAULT 'url',
-            direct_url TEXT
+            sana TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )''')
         
         conn.execute('''CREATE TABLE IF NOT EXISTS shorts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             sarlavha TEXT NOT NULL,
             tafsilot TEXT,
-            embed_url TEXT,
+            embed_url TEXT NOT NULL,
             video_id TEXT,
             platform TEXT,
-            sana TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            direct_url TEXT
+            sana TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )''')
-        
-        conn.execute('''CREATE TABLE IF NOT EXISTS featured_films (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            film_id INTEGER,
-            featured_sana TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )''')
-        
-        # Eski jadvallarni yangilash
-        for table in ['films', 'shorts']:
-            try:
-                conn.execute(f"ALTER TABLE {table} ADD COLUMN direct_url TEXT")
-            except sqlite3.OperationalError:
-                pass
         
         conn.commit()
     print("✅ Database ready")
@@ -182,64 +54,69 @@ init_db()
 def allowed_file(filename, allowed):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed
 
+# ============ URL NI TO'G'RI FORMATGA KELTIRISH ============
+def get_redirect_url(video_url):
+    """Google Drive va UZMedia uchun to'g'ri ochiladigan URL qaytaradi"""
+    if not video_url:
+        return video_url
+    
+    # Google Drive - preview sahifasiga o'tkazish (to'g'ridan-to'g'ri MP4 emas)
+    if 'drive.google.com' in video_url:
+        # File ID ni olish
+        match = re.search(r'/d/([a-zA-Z0-9_-]+)', video_url)
+        if match:
+            file_id = match.group(1)
+            # Preview sahifasiga o'tkazish (bu yerda video o'ynaydi)
+            return f'https://drive.google.com/file/d/{file_id}/preview'
+        return video_url
+    
+    # UZMedia - embed versiyaga o'tkazish
+    if 'uzmedia.tv' in video_url:
+        if 'embed.html' not in video_url:
+            # Oddiy sahifani embed ga o'zgartirish
+            match = re.search(r'/([a-zA-Z0-9_-]+)$', video_url)
+            if match:
+                video_id = match.group(1)
+                return f'http://uzmedia.tv/embed.html?file={video_id}'
+        return video_url
+    
+    # Boshqa barcha URL (YouTube, MP4, v.b.) - to'g'ridan-to'g'ri ochish
+    return video_url
+
 # ============ PUBLIC ROUTES ============
 @app.route('/')
 def index():
     with get_db() as conn:
-        shorts = [dict(row) for row in conn.execute("SELECT * FROM shorts ORDER BY sana DESC LIMIT 20").fetchall()]
-        featured_films = [dict(row) for row in conn.execute("""
-            SELECT f.* FROM films f 
-            JOIN featured_films ff ON f.id = ff.film_id 
-            ORDER BY ff.featured_sana DESC LIMIT 10
-        """).fetchall()]
-    return render_template('index.html', shorts=shorts, featured_films=featured_films)
+        shorts = conn.execute("SELECT * FROM shorts ORDER BY sana DESC").fetchall()
+        shorts = [dict(row) for row in shorts]
+    
+    return render_template('index.html', shorts=shorts)
 
 @app.route('/film/<kod>')
-def film(kod):
+def film_page(kod):
     with get_db() as conn:
         row = conn.execute("SELECT * FROM films WHERE kod = ?", (kod.upper(),)).fetchone()
     
     if not row:
-        return "<h1>Film topilmadi!</h1><a href='/'>Bosh sahifa</a>", 404
+        return "Film topilmadi!", 404
     
-    film_data = dict(row)
+    film = dict(row)
+    video_url = film['video_url']
     
-    # Uzmedia.tv uchun proxidan foydalanish
-    if film_data['platform'] == 'uzmedia':
-        direct_url = film_data.get('direct_url') or film_data.get('embed_url')
-        
-        # To'g'ridan-to'g'ri MP4 manzilini olish
-        mp4_url = extract_uzmedia_direct_url(direct_url)
-        
-        if mp4_url:
-            # Proxy orqali video
-            film_data['proxy_url'] = f"/proxy/uzmedia?url={urllib.parse.quote(mp4_url)}"
-            film_data['use_proxy'] = True
-        else:
-            # Agar MP4 topilmasa, embed orqali
-            film_data['use_proxy'] = False
+    # To'g'ri ochiladigan URL ga o'girish
+    redirect_url = get_redirect_url(video_url)
     
-    return render_template('film.html', film=film_data)
-
-@app.route('/shorts')
-def shorts():
-    with get_db() as conn:
-        shorts_list = [dict(row) for row in conn.execute("SELECT * FROM shorts ORDER BY sana DESC").fetchall()]
-    return render_template('shorts.html', shorts=shorts_list)
-
-@app.route('/filmlar')
-def filmlar():
-    with get_db() as conn:
-        filmlar_list = [dict(row) for row in conn.execute("SELECT * FROM films ORDER BY id DESC").fetchall()]
-    return render_template('filmlar.html', filmlar=filmlar_list)
+    # To'g'ridan-to'g'ri redirect
+    return redirect(redirect_url)
 
 # ============ API ============
 @app.route('/api/check/<kod>')
 def check_film(kod):
     with get_db() as conn:
-        row = conn.execute("SELECT id, nomi, platform FROM films WHERE kod = ?", (kod.upper(),)).fetchone()
+        row = conn.execute("SELECT id, nomi FROM films WHERE kod = ?", (kod.upper(),)).fetchone()
+    
     if row:
-        return jsonify({"exists": True, "nomi": row['nomi'], "platform": row['platform']})
+        return jsonify({"exists": True, "nomi": row['nomi']}), 200
     return jsonify({"exists": False}), 404
 
 # ============ ADMIN PANEL ============
@@ -249,16 +126,18 @@ def admin():
         with get_db() as conn:
             filmlar = [dict(row) for row in conn.execute("SELECT * FROM films ORDER BY id DESC").fetchall()]
             shorts_list = [dict(row) for row in conn.execute("SELECT * FROM shorts ORDER BY sana DESC").fetchall()]
-            total_films = conn.execute("SELECT COUNT(*) as c FROM films").fetchone()['c']
-            total_shorts = conn.execute("SELECT COUNT(*) as c FROM shorts").fetchone()['c']
+            total_films = len(filmlar)
+            total_shorts = len(shorts_list)
         return render_template('admin.html', login=True, filmlar=filmlar, shorts_list=shorts_list,
                                total_films=total_films, total_shorts=total_shorts)
     
     if request.method == 'POST':
-        if request.form.get('parol') == ADMIN_PASSWORD:
+        parol = request.form.get('parol')
+        if parol == ADMIN_PASSWORD:
             session['admin_logged_in'] = True
             return redirect(url_for('admin'))
-        return render_template('admin.html', login=False, xato="Parol noto'g'ri!")
+        else:
+            return render_template('admin.html', login=False, xato="Parol noto'g'ri!")
     
     return render_template('admin.html', login=False)
 
@@ -282,18 +161,14 @@ def admin_add_film():
     if not video_url:
         return "Video URL manzili kerak!", 400
     
-    platform = detect_platform(video_url)
-    
-    # Uzmedia uchun to'g'ridan-to'g'ri MP4 manzilini saqlash
-    direct_url = video_url
-    embed_url = video_url
-    
-    if platform == 'uzmedia':
-        # Embed URL yaratish
-        mp4_url = extract_uzmedia_direct_url(video_url)
-        if mp4_url:
-            direct_url = mp4_url
-            embed_url = f"https://uzmedia.tv/embed.html?file={urllib.parse.quote(mp4_url)}"
+    # Platformani aniqlash
+    platform = 'other'
+    if 'youtube.com' in video_url or 'youtu.be' in video_url:
+        platform = 'youtube'
+    elif 'drive.google.com' in video_url:
+        platform = 'googledrive'
+    elif 'uzmedia.tv' in video_url:
+        platform = 'uzmedia'
     
     rasm_nomi = None
     if 'rasm' in request.files:
@@ -306,15 +181,28 @@ def admin_add_film():
     try:
         with get_db() as conn:
             conn.execute("""INSERT INTO films 
-                (kod, nomi, tafsilot, yil, janr, rasm, embed_url, platform, turi, direct_url) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (kod, nomi, tafsilot, yil, janr, rasm_nomi, 
-                 embed_url, platform, 'url', direct_url))
-            film_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-            conn.execute("INSERT INTO featured_films (film_id) VALUES (?)", (film_id,))
+                (kod, nomi, tafsilot, yil, janr, rasm, video_url, platform) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (kod, nomi, tafsilot, yil, janr, rasm_nomi, video_url, platform))
             conn.commit()
     except sqlite3.IntegrityError:
         return "Bunday kod allaqachon mavjud!", 400
+    
+    return redirect(url_for('admin'))
+
+@app.route('/admin/film/delete/<int:id>', methods=['POST'])
+def admin_delete_film(id):
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin'))
+    
+    with get_db() as conn:
+        row = conn.execute("SELECT rasm FROM films WHERE id = ?", (id,)).fetchone()
+        if row and row['rasm']:
+            rasm_path = os.path.join(UPLOAD_FOLDER_POSTERS, row['rasm'])
+            if os.path.exists(rasm_path):
+                os.remove(rasm_path)
+        conn.execute("DELETE FROM films WHERE id = ?", (id,))
+        conn.commit()
     
     return redirect(url_for('admin'))
 
@@ -330,30 +218,26 @@ def admin_add_shorts():
     if not video_url:
         return "Video URL manzili kerak!", 400
     
-    platform = detect_platform(video_url)
+    platform = 'other'
+    if 'youtube.com' in video_url or 'youtu.be' in video_url:
+        platform = 'youtube'
+    elif 'instagram.com' in video_url:
+        platform = 'instagram'
+    elif 'tiktok.com' in video_url:
+        platform = 'tiktok'
+    
+    # Shorts uchun embed URL tayyorlash
+    embed_url = video_url
+    if 'youtube.com/shorts' in video_url:
+        match = re.search(r'shorts/([a-zA-Z0-9_-]+)', video_url)
+        if match:
+            embed_url = f'https://www.youtube.com/embed/{match.group(1)}?autoplay=1'
     
     with get_db() as conn:
         conn.execute("""INSERT INTO shorts 
-            (sarlavha, tafsilot, embed_url, platform, direct_url) 
+            (sarlavha, tafsilot, embed_url, video_id, platform) 
             VALUES (?, ?, ?, ?, ?)""",
-            (sarlavha, tafsilot, video_url, platform, video_url))
-        conn.commit()
-    
-    return redirect(url_for('admin'))
-
-@app.route('/admin/film/delete/<int:id>', methods=['POST'])
-def admin_delete_film(id):
-    if not session.get('admin_logged_in'):
-        return redirect(url_for('admin'))
-    
-    with get_db() as conn:
-        row = conn.execute("SELECT rasm FROM films WHERE id = ?", (id,)).fetchone()
-        if row and row['rasm']:
-            rasm_path = os.path.join(UPLOAD_FOLDER_POSTERS, row['rasm'])
-            if os.path.exists(rasm_path):
-                os.remove(rasm_path)
-        conn.execute("DELETE FROM featured_films WHERE film_id = ?", (id,))
-        conn.execute("DELETE FROM films WHERE id = ?", (id,))
+            (sarlavha, tafsilot, embed_url, video_url, platform))
         conn.commit()
     
     return redirect(url_for('admin'))
@@ -369,45 +253,31 @@ def admin_delete_shorts(id):
     
     return redirect(url_for('admin'))
 
-@app.route('/admin/featured/<int:film_id>', methods=['POST'])
-def admin_toggle_featured(film_id):
-    if not session.get('admin_logged_in'):
-        return redirect(url_for('admin'))
-    
-    with get_db() as conn:
-        existing = conn.execute("SELECT id FROM featured_films WHERE film_id = ?", (film_id,)).fetchone()
-        if existing:
-            conn.execute("DELETE FROM featured_films WHERE film_id = ?", (film_id,))
-        else:
-            conn.execute("INSERT INTO featured_films (film_id) VALUES (?)", (film_id,))
-        conn.commit()
-    
-    return redirect(url_for('admin'))
-
-# ============ STATIC FILES ============
 @app.route('/static/uploads/posters/<filename>')
 def serve_poster(filename):
+    from flask import send_from_directory
     return send_from_directory(UPLOAD_FOLDER_POSTERS, filename)
 
-# ============ MAIN ============
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
-    print("""
-    ╔══════════════════════════════════════════════════════════════════════════╗
-    ║                    🎬 KINOTOP - UNIVERSAL PLAYER 🎬                       ║
-    ╠══════════════════════════════════════════════════════════════════════════╣
-    ║                                                                          ║
-    ║  🌐 PORT:        {}                                                       ║
-    ║  🔐 ADMIN:       /admin                                                  ║
-    ║  📝 PASS:        Betmilion1                                              ║
-    ║                                                                          ║
-    ║  ✅ PROXY SERVER: /proxy/uzmedia - Uzmedia.tv videolari uchun            ║
-    ║                                                                          ║
-    ║  📌 Qo'llab-quvvatlanadigan platformalar:                                 ║
-    ║     • YouTube      • Google Drive    • Uzmedia.tv (Proxy ✅)             ║
-    ║     • VK           • UzMovi          • Instagram                         ║
-    ║     • TikTok       • Vimeo           • DailyMotion                       ║
-    ║                                                                          ║
-    ╚══════════════════════════════════════════════════════════════════════════╝
-    """.format(port))
-    app.run(host='0.0.0.0', port=port, debug=False, threaded=True)
+    print(f"""
+    ╔══════════════════════════════════════════════════════════════╗
+    ║                                                              ║
+    ║     🎬 KINOTOP - REDIRECT VERSION 🎬                        ║
+    ║                                                              ║
+    ╠══════════════════════════════════════════════════════════════╣
+    ║                                                              ║
+    ║  🌐 PORT:        {port}                                      ║
+    ║  🔐 ADMIN:       /admin                                     ║
+    ║  📝 ADMIN PASS:  Betmilion1                                 ║
+    ║                                                              ║
+    ║  💡 QANDAY ISHLAYDI:                                        ║
+    ║                                                              ║
+    ║     Google Drive  →  /file/ID/preview  (preview sahifasi)   ║
+    ║     UZMedia       →  /embed.html?file=... (embed player)    ║
+    ║     YouTube       →  /embed/ID?autoplay=1                   ║
+    ║     Boshqa URL    →  to'g'ridan-to'g'ri redirect            ║
+    ║                                                              ║
+    ╚══════════════════════════════════════════════════════════════╝
+    """)
+    app.run(host='0.0.0.0', port=port, debug=True)
