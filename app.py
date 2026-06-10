@@ -5,9 +5,12 @@ import urllib.parse
 import requests
 from flask import Flask, render_template, request, redirect, url_for, send_from_directory, jsonify, session, Response
 from datetime import datetime
+from functools import wraps
+import time
 
 app = Flask(__name__)
 app.secret_key = 'kinotop-secret-key-2024'
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_FOLDER_POSTERS = os.path.join(BASE_DIR, 'static/uploads/posters')
@@ -45,134 +48,82 @@ def detect_platform(url):
     
     return 'iframe'
 
-def extract_video_id(url, platform):
-    """Platformaga qarab video ID olish"""
-    if platform == 'youtube':
-        patterns = [
-            r'(?:youtu\.be\/)([a-zA-Z0-9_-]{11})',
-            r'(?:youtube\.com\/watch\?v=)([a-zA-Z0-9_-]{11})',
-            r'(?:youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})',
-            r'(?:youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})'
-        ]
-        for pattern in patterns:
-            match = re.search(pattern, url)
-            if match:
-                return match.group(1)
-    
-    elif platform == 'googledrive':
-        patterns = [
-            r'(?:drive\.google\.com\/file\/d\/)([a-zA-Z0-9_-]+)',
-            r'(?:drive\.google\.com\/open\?id=)([a-zA-Z0-9_-]+)'
-        ]
-        for pattern in patterns:
-            match = re.search(pattern, url)
-            if match:
-                return match.group(1)
-    
-    elif platform == 'uzmedia':
-        match = re.search(r'/(\d+)', url)
-        if match:
-            return match.group(1)
+def extract_uzmedia_direct_url(url):
+    """Uzmedia.tv dan to'g'ridan-to'g'ri MP4 manzilini olish"""
+    # Agar embed.html?file=... ko'rinishida bo'lsa
+    if 'embed.html' in url:
         match = re.search(r'file=(.+?)(?:&|$)', url)
         if match:
             return urllib.parse.unquote(match.group(1))
     
+    # Agar to'g'ridan-to'g'ri MP4 bo'lsa
+    if '.mp4' in url or 'files.uzmedia.tv' in url:
+        return url
+    
+    # Agar film ID bo'lsa
+    match = re.search(r'/(\d+)', url)
+    if match:
+        return f"https://uzmedia.tv/files/{match.group(1)}.mp4"
+    
     return None
 
-def get_embed_url(url, platform, video_id=None):
-    """Platformaga mos embed URL yaratish"""
-    
-    if platform == 'youtube':
-        vid = video_id or extract_video_id(url, 'youtube')
-        if vid:
-            return f'https://www.youtube.com/embed/{vid}?autoplay=1&rel=0&modestbranding=1&showinfo=0&controls=1&fs=1&playsinline=1'
-    
-    elif platform == 'googledrive':
-        vid = video_id or extract_video_id(url, 'googledrive')
-        if vid:
-            return f'https://drive.google.com/file/d/{vid}/preview'
-    
-    elif platform == 'uzmedia':
-        # Uzmedia uchun embed URL
-        vid = video_id or extract_video_id(url, 'uzmedia')
-        if vid and vid.isdigit():
-            return f'https://uzmedia.tv/embed/{vid}'
-        elif 'files.uzmedia.tv' in url:
-            return f'https://uzmedia.tv/embed.html?file={urllib.parse.quote(url)}'
-        return url
-    
-    elif platform == 'vk':
-        match = re.search(r'video(-?\d+_\d+)', url)
-        if match:
-            parts = match.group(1).split('_')
-            if len(parts) == 2:
-                return f'https://vk.com/video_ext.php?oid={parts[0]}&id={parts[1]}&autoplay=1'
-        return url
-    
-    elif platform == 'uzmovi':
-        vid = video_id or extract_video_id(url, 'uzmovi')
-        if vid:
-            return f'https://uzmovi.com/embed/{vid}'
-        return url
-    
-    elif platform == 'instagram':
-        vid = video_id or extract_video_id(url, 'instagram')
-        if vid:
-            return f'https://www.instagram.com/p/{vid}/embed'
-        return url
-    
-    elif platform == 'tiktok':
-        vid = video_id or extract_video_id(url, 'tiktok')
-        if vid:
-            return f'https://www.tiktok.com/embed/v2/{vid}'
-        return url
-    
-    elif platform == 'vimeo':
-        vid = video_id or extract_video_id(url, 'vimeo')
-        if vid:
-            return f'https://player.vimeo.com/video/{vid}?autoplay=1&playsinline=1'
-        return url
-    
-    elif platform == 'dailymotion':
-        vid = video_id or extract_video_id(url, 'dailymotion')
-        if vid:
-            return f'https://www.dailymotion.com/embed/video/{vid}?autoplay=1'
-        return url
-    
-    return url
-
-# ============ UZMEDIA.TV PROXY ============
+# ============ UZMEDIA.TV PROXY (ASOSIY YECHIM) ============
 @app.route('/proxy/uzmedia')
 def proxy_uzmedia():
-    """Uzmedia.tv video fayllari uchun proxy - CORS muammosini hal qiladi"""
+    """Uzmedia.tv video fayllari uchun proxy server - CORS va Referer muammosini hal qiladi"""
     video_url = request.args.get('url', '')
     if not video_url:
         return "URL parameter required", 400
     
+    # URL ni dekod qilish
+    video_url = urllib.parse.unquote(video_url)
+    
+    print(f"Proxy request for: {video_url}")
+    
     try:
+        # Uzmedia.tv ga so'rov yuborish
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Accept': 'video/mp4,video/webm,video/*',
             'Accept-Language': 'uz,ru,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate',
             'Referer': 'https://uzmedia.tv/',
-            'Origin': 'https://uzmedia.tv'
+            'Origin': 'https://uzmedia.tv',
+            'Connection': 'keep-alive',
+            'Range': request.headers.get('Range', '')
         }
         
         # Video faylni olish
-        resp = requests.get(video_url, headers=headers, stream=True, timeout=30)
+        resp = requests.get(video_url, headers=headers, stream=True, timeout=30, verify=False)
         
-        if resp.status_code == 200:
-            # CORS headerlari
-            response = Response(resp.iter_content(chunk_size=8192), 
-                               content_type=resp.headers.get('content-type', 'video/mp4'))
+        if resp.status_code == 200 or resp.status_code == 206:
+            # CORS headerlari bilan qaytarish
+            response = Response(
+                resp.iter_content(chunk_size=8192),
+                status=resp.status_code,
+                content_type=resp.headers.get('content-type', 'video/mp4')
+            )
             response.headers['Access-Control-Allow-Origin'] = '*'
             response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+            response.headers['Access-Control-Allow-Headers'] = 'Range'
+            response.headers['Accept-Ranges'] = 'bytes'
+            
+            # Content-Range headerini o'tkazish (agar mavjud bo'lsa)
+            if 'content-range' in resp.headers:
+                response.headers['Content-Range'] = resp.headers['content-range']
+            
+            print(f"Proxy success: {resp.status_code}")
             return response
         else:
-            return f"Failed to fetch video: {resp.status_code}", 500
+            print(f"Proxy failed: {resp.status_code}")
+            return f"Video topilmadi (status {resp.status_code})", 404
             
+    except requests.exceptions.Timeout:
+        print("Proxy timeout")
+        return "So'rov vaqti o'tdi", 504
     except Exception as e:
-        return f"Proxy error: {str(e)}", 500
+        print(f"Proxy error: {str(e)}")
+        return f"Proxy xatosi: {str(e)}", 500
 
 # ============ DATABASE ============
 def get_db():
@@ -191,7 +142,7 @@ def init_db():
             yil TEXT,
             janr TEXT,
             rasm TEXT,
-            embed_url TEXT NOT NULL,
+            embed_url TEXT,
             video_id TEXT,
             platform TEXT,
             thumbnail TEXT,
@@ -203,7 +154,7 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             sarlavha TEXT NOT NULL,
             tafsilot TEXT,
-            embed_url TEXT NOT NULL,
+            embed_url TEXT,
             video_id TEXT,
             platform TEXT,
             sana TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -216,6 +167,7 @@ def init_db():
             featured_sana TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )''')
         
+        # Eski jadvallarni yangilash
         for table in ['films', 'shorts']:
             try:
                 conn.execute(f"ALTER TABLE {table} ADD COLUMN direct_url TEXT")
@@ -254,10 +206,18 @@ def film(kod):
     
     # Uzmedia.tv uchun proxidan foydalanish
     if film_data['platform'] == 'uzmedia':
-        direct_url = film_data.get('direct_url')
-        if direct_url and ('files.uzmedia.tv' in direct_url or direct_url.endswith('.mp4')):
-            film_data['proxy_url'] = f"/proxy/uzmedia?url={urllib.parse.quote(direct_url)}"
-            film_data['platform'] = 'uzmedia_proxy'
+        direct_url = film_data.get('direct_url') or film_data.get('embed_url')
+        
+        # To'g'ridan-to'g'ri MP4 manzilini olish
+        mp4_url = extract_uzmedia_direct_url(direct_url)
+        
+        if mp4_url:
+            # Proxy orqali video
+            film_data['proxy_url'] = f"/proxy/uzmedia?url={urllib.parse.quote(mp4_url)}"
+            film_data['use_proxy'] = True
+        else:
+            # Agar MP4 topilmasa, embed orqali
+            film_data['use_proxy'] = False
     
     return render_template('film.html', film=film_data)
 
@@ -323,11 +283,17 @@ def admin_add_film():
         return "Video URL manzili kerak!", 400
     
     platform = detect_platform(video_url)
-    video_id = extract_video_id(video_url, platform)
-    embed_url = get_embed_url(video_url, platform, video_id)
     
-    if not embed_url:
-        return "Noto'g'ri video URL!", 400
+    # Uzmedia uchun to'g'ridan-to'g'ri MP4 manzilini saqlash
+    direct_url = video_url
+    embed_url = video_url
+    
+    if platform == 'uzmedia':
+        # Embed URL yaratish
+        mp4_url = extract_uzmedia_direct_url(video_url)
+        if mp4_url:
+            direct_url = mp4_url
+            embed_url = f"https://uzmedia.tv/embed.html?file={urllib.parse.quote(mp4_url)}"
     
     rasm_nomi = None
     if 'rasm' in request.files:
@@ -340,10 +306,10 @@ def admin_add_film():
     try:
         with get_db() as conn:
             conn.execute("""INSERT INTO films 
-                (kod, nomi, tafsilot, yil, janr, rasm, embed_url, video_id, platform, turi, direct_url) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (kod, nomi, tafsilot, yil, janr, rasm, embed_url, platform, turi, direct_url) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (kod, nomi, tafsilot, yil, janr, rasm_nomi, 
-                 embed_url, video_id, platform, 'url', video_url))
+                 embed_url, platform, 'url', direct_url))
             film_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
             conn.execute("INSERT INTO featured_films (film_id) VALUES (?)", (film_id,))
             conn.commit()
@@ -365,14 +331,12 @@ def admin_add_shorts():
         return "Video URL manzili kerak!", 400
     
     platform = detect_platform(video_url)
-    video_id = extract_video_id(video_url, platform)
-    embed_url = get_embed_url(video_url, platform, video_id)
     
     with get_db() as conn:
         conn.execute("""INSERT INTO shorts 
-            (sarlavha, tafsilot, embed_url, video_id, platform, direct_url) 
-            VALUES (?, ?, ?, ?, ?, ?)""",
-            (sarlavha, tafsilot, embed_url, video_id, platform, video_url))
+            (sarlavha, tafsilot, embed_url, platform, direct_url) 
+            VALUES (?, ?, ?, ?, ?)""",
+            (sarlavha, tafsilot, video_url, platform, video_url))
         conn.commit()
     
     return redirect(url_for('admin'))
@@ -437,8 +401,10 @@ if __name__ == '__main__':
     ║  🔐 ADMIN:       /admin                                                  ║
     ║  📝 PASS:        Betmilion1                                              ║
     ║                                                                          ║
-    ║  ✅ Qo'llab-quvvatlanadigan platformalar:                                 ║
-    ║     • YouTube      • Google Drive    • Uzmedia.tv (Proxy)                ║
+    ║  ✅ PROXY SERVER: /proxy/uzmedia - Uzmedia.tv videolari uchun            ║
+    ║                                                                          ║
+    ║  📌 Qo'llab-quvvatlanadigan platformalar:                                 ║
+    ║     • YouTube      • Google Drive    • Uzmedia.tv (Proxy ✅)             ║
     ║     • VK           • UzMovi          • Instagram                         ║
     ║     • TikTok       • Vimeo           • DailyMotion                       ║
     ║                                                                          ║
