@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Kinotop | Uzmedia.tv pleer</title>
+    <title>Kinotop | O‘rgimchak-odam: Uyga qaytish</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         * {
             margin: 0;
@@ -16,7 +17,7 @@
             width: 100%;
             overflow: hidden;
             position: fixed;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
         }
         .video-container {
             position: relative;
@@ -25,18 +26,13 @@
             background: #000;
         }
         .video-wrapper {
-            position: relative;
             width: 100%;
             height: 100%;
-            background: #000;
         }
         .video-wrapper iframe {
             width: 100%;
             height: 100%;
             border: none;
-            position: absolute;
-            top: 0;
-            left: 0;
         }
         .back-btn {
             position: fixed;
@@ -59,7 +55,7 @@
         }
         .back-btn:active {
             transform: scale(0.92);
-            background: rgba(102,126,234,0.8);
+            background: #667eea;
         }
         .loading {
             position: fixed;
@@ -74,7 +70,7 @@
             justify-content: center;
             flex-direction: column;
             gap: 20px;
-            transition: opacity 0.3s;
+            transition: opacity 0.4s;
         }
         .loading.hide {
             opacity: 0;
@@ -114,8 +110,8 @@
     <div class="back-btn" id="backBtn">
         <i class="fas fa-arrow-left"></i>
     </div>
-    <div class="video-wrapper" id="videoWrapper">
-        <!-- MUHIM: Bu yerga uzmedia.tv dan olingan to'liq embed kodini qo'ying -->
+    <div class="video-wrapper">
+        <!-- MUHIM: 'FILM_ID' ni uzmedia.tv dan olingan haqiqiy raqam bilan almashtiring -->
         <iframe id="videoPlayer" src="https://uzmedia.tv/embed/FILM_ID" allow="autoplay; fullscreen" allowfullscreen></iframe>
     </div>
 </div>
@@ -126,24 +122,22 @@
         const backBtn = document.getElementById('backBtn');
         const iframe = document.getElementById('videoPlayer');
         
-        // Yuklash animatsiyasini 1.5 sekunddan keyin yashirish
-        setTimeout(() => {
-            loading.classList.add('hide');
-        }, 1500);
+        // Yuklanish indikatorini boshqarish
+        const hideLoading = () => loading.classList.add('hide');
         
-        // Iframe yuklanganda ham yashirish
         if (iframe) {
-            iframe.onload = () => {
-                loading.classList.add('hide');
-            };
+            // Iframe yuklanganda yoki 3 sekunddan keyin yashirish
+            iframe.onload = hideLoading;
+            setTimeout(hideLoading, 3000);
+        } else {
+            setTimeout(hideLoading, 1500);
         }
         
-        // Orqaga qaytish
         backBtn.addEventListener('click', () => {
             window.location.href = '/';
         });
         
-        // Chap chetidan surish orqaga qaytish (telefon uchun)
+        // Telefonda chetdan surish orqaga qaytish
         let touchStartX = 0;
         document.addEventListener('touchstart', (e) => {
             touchStartX = e.touches[0].clientX;
@@ -154,10 +148,14 @@
                 window.location.href = '/';
             }
         });
+        
+        // Klaviatura yordami (orqaga)
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' || e.key === 'ArrowLeft') {
+                window.location.href = '/';
+            }
+        });
     })();
 </script>
-
-<!-- Font Awesome ikonkalar uchun -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </body>
 </html>
