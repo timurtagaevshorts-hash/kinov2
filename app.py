@@ -46,6 +46,18 @@ def init_db():
             sana TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )''')
         
+        # Yangi: Dinamik tugma sozlamalari uchun jadval
+        conn.execute('''CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT,
+            sana TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )''')
+        
+        # Default tugma sozlamalarini qo'shish (agar mavjud bo'lmasa)
+        conn.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('action_button_enabled', 'true')")
+        conn.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('action_button_text', 'Top Kino')")
+        conn.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('action_button_url', 'https://t.me/Kodlikino_topbot')")
+        
         conn.commit()
     print("✅ Database ready")
 
@@ -60,27 +72,23 @@ def get_redirect_url(video_url):
     if not video_url:
         return video_url
     
-    # Google Drive - preview sahifasiga o'tkazish (to'g'ridan-to'g'ri MP4 emas)
+    # Google Drive - preview sahifasiga o'tkazish
     if 'drive.google.com' in video_url:
-        # File ID ni olish
         match = re.search(r'/d/([a-zA-Z0-9_-]+)', video_url)
         if match:
             file_id = match.group(1)
-            # Preview sahifasiga o'tkazish (bu yerda video o'ynaydi)
             return f'https://drive.google.com/file/d/{file_id}/preview'
         return video_url
     
     # UZMedia - embed versiyaga o'tkazish
     if 'uzmedia.tv' in video_url:
         if 'embed.html' not in video_url:
-            # Oddiy sahifani embed ga o'zgartirish
             match = re.search(r'/([a-zA-Z0-9_-]+)$', video_url)
             if match:
                 video_id = match.group(1)
                 return f'http://uzmedia.tv/embed.html?file={video_id}'
         return video_url
     
-    # Boshqa barcha URL (YouTube, MP4, v.b.) - to'g'ridan-to'g'ri ochish
     return video_url
 
 # ============ PUBLIC ROUTES ============
@@ -102,11 +110,8 @@ def film_page(kod):
     
     film = dict(row)
     video_url = film['video_url']
-    
-    # To'g'ri ochiladigan URL ga o'girish
     redirect_url = get_redirect_url(video_url)
     
-    # To'g'ridan-to'g'ri redirect
     return redirect(redirect_url)
 
 # ============ API ============
@@ -119,6 +124,43 @@ def check_film(kod):
         return jsonify({"exists": True, "nomi": row['nomi']}), 200
     return jsonify({"exists": False}), 404
 
+# ============ DINAMIK TUGMA API ============
+@app.route('/api/action-button', methods=['GET'])
+def get_action_button():
+    """Dinamik tugma sozlamalarini olish"""
+    with get_db() as conn:
+        enabled = conn.execute("SELECT value FROM settings WHERE key = 'action_button_enabled'").fetchone()
+        text = conn.execute("SELECT value FROM settings WHERE key = 'action_button_text'").fetchone()
+        url = conn.execute("SELECT value FROM settings WHERE key = 'action_button_url'").fetchone()
+    
+    return jsonify({
+        "enabled": enabled['value'] == 'true' if enabled else True,
+        "text": text['value'] if text else "Top Kino",
+        "url": url['value'] if url else "https://t.me/Kodlikino_topbot"
+    })
+
+@app.route('/api/action-button', methods=['POST'])
+def update_action_button():
+    """Admin panel orqali dinamik tugma sozlamalarini yangilash"""
+    if not session.get('admin_logged_in'):
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Invalid data"}), 400
+    
+    with get_db() as conn:
+        if 'enabled' in data:
+            conn.execute("UPDATE settings SET value = ? WHERE key = 'action_button_enabled'", 
+                        ('true' if data['enabled'] else 'false',))
+        if 'text' in data and data['text']:
+            conn.execute("UPDATE settings SET value = ? WHERE key = 'action_button_text'", (data['text'],))
+        if 'url' in data and data['url']:
+            conn.execute("UPDATE settings SET value = ? WHERE key = 'action_button_url'", (data['url'],))
+        conn.commit()
+    
+    return jsonify({"success": True})
+
 # ============ ADMIN PANEL ============
 @app.route('/admin', methods=['GET', 'POST'])
 def admin():
@@ -126,10 +168,23 @@ def admin():
         with get_db() as conn:
             filmlar = [dict(row) for row in conn.execute("SELECT * FROM films ORDER BY id DESC").fetchall()]
             shorts_list = [dict(row) for row in conn.execute("SELECT * FROM shorts ORDER BY sana DESC").fetchall()]
+            
+            # Dinamik tugma sozlamalarini olish
+            action_enabled = conn.execute("SELECT value FROM settings WHERE key = 'action_button_enabled'").fetchone()
+            action_text = conn.execute("SELECT value FROM settings WHERE key = 'action_button_text'").fetchone()
+            action_url = conn.execute("SELECT value FROM settings WHERE key = 'action_button_url'").fetchone()
+            
             total_films = len(filmlar)
             total_shorts = len(shorts_list)
+            
+            action_config = {
+                'enabled': action_enabled['value'] == 'true' if action_enabled else True,
+                'text': action_text['value'] if action_text else "Top Kino",
+                'url': action_url['value'] if action_url else "https://t.me/Kodlikino_topbot"
+            }
+        
         return render_template('admin.html', login=True, filmlar=filmlar, shorts_list=shorts_list,
-                               total_films=total_films, total_shorts=total_shorts)
+                               total_films=total_films, total_shorts=total_shorts, action_config=action_config)
     
     if request.method == 'POST':
         parol = request.form.get('parol')
@@ -161,7 +216,6 @@ def admin_add_film():
     if not video_url:
         return "Video URL manzili kerak!", 400
     
-    # Platformani aniqlash
     platform = 'other'
     if 'youtube.com' in video_url or 'youtu.be' in video_url:
         platform = 'youtube'
@@ -226,7 +280,6 @@ def admin_add_shorts():
     elif 'tiktok.com' in video_url:
         platform = 'tiktok'
     
-    # Shorts uchun embed URL tayyorlash
     embed_url = video_url
     if 'youtube.com/shorts' in video_url:
         match = re.search(r'shorts/([a-zA-Z0-9_-]+)', video_url)
@@ -253,6 +306,23 @@ def admin_delete_shorts(id):
     
     return redirect(url_for('admin'))
 
+@app.route('/admin/action-button', methods=['POST'])
+def admin_update_action_button():
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin'))
+    
+    enabled = request.form.get('enabled') == 'true'
+    text = request.form.get('text', 'Top Kino').strip()
+    url = request.form.get('url', 'https://t.me/Kodlikino_topbot').strip()
+    
+    with get_db() as conn:
+        conn.execute("UPDATE settings SET value = ? WHERE key = 'action_button_enabled'", ('true' if enabled else 'false',))
+        conn.execute("UPDATE settings SET value = ? WHERE key = 'action_button_text'", (text,))
+        conn.execute("UPDATE settings SET value = ? WHERE key = 'action_button_url'", (url,))
+        conn.commit()
+    
+    return redirect(url_for('admin'))
+
 @app.route('/static/uploads/posters/<filename>')
 def serve_poster(filename):
     from flask import send_from_directory
@@ -271,12 +341,8 @@ if __name__ == '__main__':
     ║  🔐 ADMIN:       /admin                                     ║
     ║  📝 ADMIN PASS:  Betmilion1                                 ║
     ║                                                              ║
-    ║  💡 QANDAY ISHLAYDI:                                        ║
-    ║                                                              ║
-    ║     Google Drive  →  /file/ID/preview  (preview sahifasi)   ║
-    ║     UZMedia       →  /embed.html?file=... (embed player)    ║
-    ║     YouTube       →  /embed/ID?autoplay=1                   ║
-    ║     Boshqa URL    →  to'g'ridan-to'g'ri redirect            ║
+    ║  🎮 DINAMIK TUGMA:                                          ║
+    ║     Admin panel -> "Dinamik Tugma" bo'limida sozlash        ║
     ║                                                              ║
     ╚══════════════════════════════════════════════════════════════╝
     """)
