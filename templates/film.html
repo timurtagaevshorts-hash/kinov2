@@ -2,7 +2,174 @@
 <html lang="uz">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover"><!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>{{ film.nomi }} | Kinotop</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #000;
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            width: 100%;
+            position: fixed;
+        }
+        .video-container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            background: #000;
+        }
+        .video-wrapper {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: #000;
+        }
+        .video-wrapper iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        .video-wrapper video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        .back-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(10px);
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            text-decoration: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 20px;
+            transition: opacity 0.3s;
+        }
+        .loading.hide { opacity: 0; pointer-events: none; }
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 3px solid rgba(102,126,234,0.3);
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .error-msg {
+            position: fixed;
+            bottom: 30px;
+            left: 20px;
+            right: 20px;
+            background: rgba(220,53,69,0.95);
+            padding: 15px;
+            border-radius: 12px;
+            color: white;
+            text-align: center;
+            z-index: 200;
+            transform: translateY(100px);
+            transition: transform 0.3s;
+        }
+        .error-msg.show { transform: translateY(0); }
+    </style>
+</head>
+<body>
+
+<div class="loading" id="loading">
+    <div class="spinner"></div>
+    <div style="color:white">🎬 Film yuklanmoqda...</div>
+</div>
+
+<div class="video-container">
+    <div class="back-btn" id="backBtn">
+        <i class="fas fa-arrow-left"></i>
+    </div>
+    
+    <div class="video-wrapper" id="videoWrapper">
+        {% if film.platform == 'direct' %}
+            <video id="videoPlayer" src="{{ film.embed_url }}" controls autoplay style="width:100%;height:100%"></video>
+        {% elif film.platform == 'googledrive' %}
+            <iframe id="videoPlayer" src="{{ film.embed_url }}?autoplay=1" allow="autoplay; fullscreen" allowfullscreen></iframe>
+        {% else %}
+            <iframe id="videoPlayer" src="{{ film.embed_url }}" allow="autoplay; fullscreen" allowfullscreen></iframe>
+        {% endif %}
+    </div>
+</div>
+
+<div class="error-msg" id="errorMsg">
+    <i class="fas fa-exclamation-triangle"></i> Video yuklashda xatolik
+</div>
+
+<script>
+    (function() {
+        const loading = document.getElementById('loading');
+        const errorMsg = document.getElementById('errorMsg');
+        
+        function showError(text) {
+            errorMsg.innerHTML = '<i class="fas fa-exclamation-triangle"></i> ' + text;
+            errorMsg.classList.add('show');
+            setTimeout(() => errorMsg.classList.remove('show'), 4000);
+        }
+        
+        // Yuklashni yashirish
+        setTimeout(() => {
+            loading.classList.add('hide');
+        }, 1500);
+        
+        // Orqaga qaytish
+        document.getElementById('backBtn').addEventListener('click', () => {
+            window.location.href = '/';
+        });
+        
+        // Video player xatoliklari
+        const videoPlayer = document.getElementById('videoPlayer');
+        if (videoPlayer && videoPlayer.tagName === 'VIDEO') {
+            videoPlayer.onerror = function() {
+                showError('Video yuklanmadi. URL manzilni tekshiring.');
+            };
+        }
+        
+        // Iframe xatoliklari (cheklangan)
+        if (videoPlayer && videoPlayer.tagName === 'IFRAME') {
+            setTimeout(() => {
+                loading.classList.add('hide');
+            }, 1000);
+        }
+    })();
+</script>
+</body>
+</html>
+    
     <title>Kinotop | Film tomosha qilish</title>
     <link rel="manifest" href="/static/manifest.json">
     <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
