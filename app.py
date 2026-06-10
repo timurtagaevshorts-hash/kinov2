@@ -1,10 +1,8 @@
 import os
 import sqlite3
 import re
-import requests
-from flask import Flask, render_template, request, redirect, url_for, send_file, send_from_directory, jsonify, session, Response
+from flask import Flask, render_template, request, redirect, url_for, send_from_directory, jsonify, session
 from datetime import datetime
-from functools import wraps
 
 app = Flask(__name__)
 app.secret_key = 'kinotop-secret-key-2024'
@@ -20,7 +18,7 @@ ADMIN_PASSWORD = 'Betmilion1'
 
 ALLOWED_IMAGE = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
-# ============ VIDEO PLATFORMALARINI ANIQLASH (KENGAYTIRILGAN) ============
+# ============ VIDEO PLATFORMALARINI ANIQLASH ============
 
 def extract_google_drive_id(url):
     """Google Drive dan fayl ID olish"""
@@ -45,25 +43,20 @@ def get_google_drive_embed_url(file_id, folder=False):
 
 def extract_uzmedia_info(url):
     """Uzmedia.tv dan video ma'lumot olish"""
-    # Uzmedia embed yoki to'g'ridan-to'g'ri fayl manzili
     if 'uzmedia.tv' in url:
-        # Agar embed.html bo'lsa
         if 'embed.html' in url:
             return {
                 'platform': 'uzmedia',
                 'embed_url': url,
                 'thumbnail': None
             }
-        # Agar to'g'ridan-to'g'ri fayl bo'lsa
         elif 'files.uzmedia.tv' in url or '.mp4' in url:
             return {
                 'platform': 'uzmedia',
                 'embed_url': f'https://uzmedia.tv/embed.html?file={url}',
                 'thumbnail': None
             }
-        # Agar film sahifasi bo'lsa
         else:
-            # Film ID ni olishga harakat qilish
             match = re.search(r'/(\d+)-', url)
             if match:
                 film_id = match.group(1)
@@ -75,11 +68,11 @@ def extract_uzmedia_info(url):
     return None
 
 def get_video_info(url):
-    """Turli platformalardan video ID va embed URL olish (Kengaytirilgan)"""
+    """Turli platformalardan video ID va embed URL olish"""
     if not url:
         return None
     
-    # ===== GOOGLE DRIVE =====
+    # Google Drive
     gd_id = extract_google_drive_id(url)
     if gd_id:
         return {
@@ -90,12 +83,12 @@ def get_video_info(url):
             'direct_url': f'https://drive.google.com/uc?export=download&id={gd_id}'
         }
     
-    # ===== UZMEDIA.TV =====
+    # Uzmedia.tv
     uzmedia_info = extract_uzmedia_info(url)
     if uzmedia_info:
         return uzmedia_info
     
-    # ===== YOUTUBE =====
+    # YouTube
     youtube_patterns = [
         r'(?:youtu\.be\/)([a-zA-Z0-9_-]{11})',
         r'(?:youtube\.com\/watch\?v=)([a-zA-Z0-9_-]{11})',
@@ -114,7 +107,7 @@ def get_video_info(url):
                 'thumbnail': f'https://img.youtube.com/vi/{video_id}/maxresdefault.jpg'
             }
     
-    # ===== VK VIDEO =====
+    # VK Video
     vk_patterns = [
         r'(?:vk\.com\/video-?\d+_\d+)',
         r'(?:vk\.com\/video_ext\.php\?oid=-?\d+&id=\d+)',
@@ -123,7 +116,6 @@ def get_video_info(url):
     for pattern in vk_patterns:
         match = re.search(pattern, url)
         if match:
-            # VK video ID ni olish
             if 'video_ext' in url:
                 oid_match = re.search(r'oid=(-?\d+)', url)
                 id_match = re.search(r'id=(\d+)', url)
@@ -142,7 +134,7 @@ def get_video_info(url):
                         'thumbnail': None
                     }
     
-    # ===== UZMOVI / UZMOVI.UZ =====
+    # UzMovi
     uzmovi_patterns = [
         r'(?:uzmovi\.com\/)([a-zA-Z0-9_-]+)',
         r'(?:uzmovi\.uz\/)([a-zA-Z0-9_-]+)',
@@ -159,7 +151,7 @@ def get_video_info(url):
                 'thumbnail': None
             }
     
-    # ===== INSTAGRAM =====
+    # Instagram
     instagram_patterns = [
         r'(?:instagram\.com\/p\/([a-zA-Z0-9_-]+))',
         r'(?:instagr\.am\/p\/([a-zA-Z0-9_-]+))',
@@ -177,7 +169,7 @@ def get_video_info(url):
                 'thumbnail': None
             }
     
-    # ===== TIKTOK =====
+    # TikTok
     tiktok_patterns = [
         r'(?:tiktok\.com\/@[\w]+\/video\/(\d+))',
         r'(?:tiktok\.com\/embed\/v2\/)(\d+)',
@@ -194,7 +186,7 @@ def get_video_info(url):
                 'thumbnail': None
             }
     
-    # ===== VIMEO =====
+    # Vimeo
     vimeo_patterns = [
         r'(?:vimeo\.com\/)(\d+)',
         r'(?:player\.vimeo\.com\/video\/)(\d+)',
@@ -211,7 +203,7 @@ def get_video_info(url):
                 'thumbnail': None
             }
     
-    # ===== DAILYMOTION =====
+    # DailyMotion
     dailymotion_patterns = [
         r'(?:dailymotion\.com\/video\/)([a-zA-Z0-9]+)',
         r'(?:dai\.ly\/)([a-zA-Z0-9]+)',
@@ -228,7 +220,7 @@ def get_video_info(url):
                 'thumbnail': None
             }
     
-    # ===== MP4 / DIRECT VIDEO URL =====
+    # Direct MP4
     if url.endswith('.mp4') or url.endswith('.webm') or url.endswith('.ogg') or 'video' in url:
         return {
             'platform': 'direct',
@@ -338,7 +330,7 @@ def init_db():
             featured_sana TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )''')
         
-        # Mavjud jadvallarga yangi ustun qo'shish (agar mavjud bo'lmasa)
+        # Mavjud jadvallarga yangi ustun qo'shish
         try:
             conn.execute("ALTER TABLE films ADD COLUMN direct_url TEXT")
         except sqlite3.OperationalError:
@@ -380,11 +372,18 @@ def film(kod):
     
     film_data = dict(row)
     
-    # Qo'shimcha embed URL tayyorlash
-    if film_data['platform'] == 'googledrive' and film_data.get('video_id'):
-        film_data['embed_url'] = get_google_drive_embed_url(film_data['video_id'])
-    elif film_data['platform'] == 'direct' and film_data.get('direct_url'):
-        film_data['embed_url'] = film_data['direct_url']
+    # Embed URL ni to'g'ri formatlash
+    if film_data['platform'] == 'youtube':
+        pass  # YouTube embed allaqachon to'g'ri
+    elif film_data['platform'] == 'uzmedia':
+        if not film_data['embed_url'].startswith('http'):
+            film_data['embed_url'] = f"https://uzmedia.tv/embed/{film_data['video_id']}"
+    elif film_data['platform'] == 'googledrive':
+        if film_data.get('video_id'):
+            film_data['embed_url'] = get_google_drive_embed_url(film_data['video_id'])
+    elif film_data['platform'] == 'direct':
+        if film_data.get('direct_url'):
+            film_data['embed_url'] = film_data['direct_url']
     
     return render_template('film.html', film=film_data)
 
@@ -414,7 +413,6 @@ def check_film(kod):
 
 @app.route('/api/platforms')
 def get_platforms():
-    """Qo'llab-quvvatlanadigan platformalar ro'yxati"""
     platforms = [
         {'name': 'YouTube', 'icon': 'fab fa-youtube', 'color': '#FF0000'},
         {'name': 'Google Drive', 'icon': 'fab fa-google-drive', 'color': '#4285F4'},
@@ -578,12 +576,13 @@ def serve_poster(filename):
 # ============ ERROR HANDLERS ============
 @app.errorhandler(404)
 def not_found(error):
-    return render_template('404.html'), 404
+    return "<h1>404 - Sahifa topilmadi!</h1><a href='/'>Bosh sahifaga qaytish</a>", 404
 
 @app.errorhandler(500)
 def internal_error(error):
-    return render_template('500.html'), 500
+    return "<h1>500 - Server xatosi!</h1><a href='/'>Bosh sahifaga qaytish</a>", 500
 
+# ============ MAIN ============
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
     print("""
