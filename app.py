@@ -54,60 +54,34 @@ init_db()
 def allowed_file(filename, allowed):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed
 
-# ============ KINOTOP O'ZIDA KO'RSATISH UCHUN URL ============
-def get_embed_url(video_url):
-    """Kinotop o'zida ko'rsatish uchun embed URL"""
+# ============ URL NI TO'G'RI FORMATGA KELTIRISH ============
+def get_redirect_url(video_url):
+    """Google Drive va UZMedia uchun to'g'ri ochiladigan URL qaytaradi"""
     if not video_url:
-        return None
+        return video_url
     
-    # Google Drive -> preview (Kinotop iframe da)
+    # Google Drive - preview sahifasiga o'tkazish (to'g'ridan-to'g'ri MP4 emas)
     if 'drive.google.com' in video_url:
+        # File ID ni olish
         match = re.search(r'/d/([a-zA-Z0-9_-]+)', video_url)
         if match:
             file_id = match.group(1)
+            # Preview sahifasiga o'tkazish (bu yerda video o'ynaydi)
             return f'https://drive.google.com/file/d/{file_id}/preview'
         return video_url
     
-    # UZMedia embed
+    # UZMedia - embed versiyaga o'tkazish
     if 'uzmedia.tv' in video_url:
-        if 'embed.html' in video_url:
-            return video_url
-        # Oddiy sahifani embed ga o'zgartirish
-        return video_url
-    
-    # YouTube
-    if 'youtube.com' in video_url or 'youtu.be' in video_url:
-        patterns = [
-            r'(?:youtu\.be\/)([a-zA-Z0-9_-]+)',
-            r'(?:youtube\.com\/watch\?v=)([a-zA-Z0-9_-]+)',
-            r'(?:youtube\.com\/embed\/)([a-zA-Z0-9_-]+)',
-            r'(?:youtube\.com\/shorts\/)([a-zA-Z0-9_-]+)'
-        ]
-        for pattern in patterns:
-            match = re.search(pattern, video_url)
+        if 'embed.html' not in video_url:
+            # Oddiy sahifani embed ga o'zgartirish
+            match = re.search(r'/([a-zA-Z0-9_-]+)$', video_url)
             if match:
                 video_id = match.group(1)
-                return f'https://www.youtube.com/embed/{video_id}?autoplay=1&rel=0'
+                return f'http://uzmedia.tv/embed.html?file={video_id}'
         return video_url
     
-    # To'g'ridan-to'g'ri MP4
-    if '.mp4' in video_url or '.webm' in video_url:
-        return video_url
-    
+    # Boshqa barcha URL (YouTube, MP4, v.b.) - to'g'ridan-to'g'ri ochish
     return video_url
-
-def get_platform(video_url):
-    if not video_url:
-        return 'other'
-    if 'youtube.com' in video_url or 'youtu.be' in video_url:
-        return 'youtube'
-    if 'drive.google.com' in video_url:
-        return 'googledrive'
-    if 'uzmedia.tv' in video_url:
-        return 'uzmedia'
-    if '.mp4' in video_url:
-        return 'mp4'
-    return 'other'
 
 # ============ PUBLIC ROUTES ============
 @app.route('/')
@@ -115,17 +89,11 @@ def index():
     with get_db() as conn:
         shorts = conn.execute("SELECT * FROM shorts ORDER BY sana DESC").fetchall()
         shorts = [dict(row) for row in shorts]
-        
-        # Shorts uchun embed URL
-        for short in shorts:
-            if short.get('embed_url'):
-                short['embed_url'] = get_embed_url(short['embed_url'])
     
     return render_template('index.html', shorts=shorts)
 
 @app.route('/film/<kod>')
 def film_page(kod):
-    """Kinotop o'zida ko'rsatish"""
     with get_db() as conn:
         row = conn.execute("SELECT * FROM films WHERE kod = ?", (kod.upper(),)).fetchone()
     
@@ -135,33 +103,20 @@ def film_page(kod):
     film = dict(row)
     video_url = film['video_url']
     
-    # Kinotop o'zida ko'rsatish uchun URL
-    embed_url = get_embed_url(video_url)
-    platform = get_platform(video_url)
+    # To'g'ri ochiladigan URL ga o'girish
+    redirect_url = get_redirect_url(video_url)
     
-    film_data = {
-        'id': film['id'],
-        'kod': film['kod'],
-        'nomi': film['nomi'],
-        'tafsilot': film.get('tafsilot', ''),
-        'video_url': embed_url,
-        'platform': platform
-    }
-    
-    return render_template('film.html', film=film_data)
+    # To'g'ridan-to'g'ri redirect
+    return redirect(redirect_url)
 
 # ============ API ============
 @app.route('/api/check/<kod>')
 def check_film(kod):
     with get_db() as conn:
-        row = conn.execute("SELECT id, nomi, platform FROM films WHERE kod = ?", (kod.upper(),)).fetchone()
+        row = conn.execute("SELECT id, nomi FROM films WHERE kod = ?", (kod.upper(),)).fetchone()
     
     if row:
-        return jsonify({
-            "exists": True, 
-            "nomi": row['nomi'],
-            "platform": row['platform']
-        }), 200
+        return jsonify({"exists": True, "nomi": row['nomi']}), 200
     return jsonify({"exists": False}), 404
 
 # ============ ADMIN PANEL ============
@@ -206,7 +161,14 @@ def admin_add_film():
     if not video_url:
         return "Video URL manzili kerak!", 400
     
-    platform = get_platform(video_url)
+    # Platformani aniqlash
+    platform = 'other'
+    if 'youtube.com' in video_url or 'youtu.be' in video_url:
+        platform = 'youtube'
+    elif 'drive.google.com' in video_url:
+        platform = 'googledrive'
+    elif 'uzmedia.tv' in video_url:
+        platform = 'uzmedia'
     
     rasm_nomi = None
     if 'rasm' in request.files:
@@ -256,8 +218,20 @@ def admin_add_shorts():
     if not video_url:
         return "Video URL manzili kerak!", 400
     
-    platform = get_platform(video_url)
-    embed_url = get_embed_url(video_url)
+    platform = 'other'
+    if 'youtube.com' in video_url or 'youtu.be' in video_url:
+        platform = 'youtube'
+    elif 'instagram.com' in video_url:
+        platform = 'instagram'
+    elif 'tiktok.com' in video_url:
+        platform = 'tiktok'
+    
+    # Shorts uchun embed URL tayyorlash
+    embed_url = video_url
+    if 'youtube.com/shorts' in video_url:
+        match = re.search(r'shorts/([a-zA-Z0-9_-]+)', video_url)
+        if match:
+            embed_url = f'https://www.youtube.com/embed/{match.group(1)}?autoplay=1'
     
     with get_db() as conn:
         conn.execute("""INSERT INTO shorts 
@@ -287,24 +261,23 @@ def serve_poster(filename):
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
     print(f"""
-    ╔══════════════════════════════════════════════════════════════════════╗
-    ║                                                                      ║
-    ║     🎬 KINOTOP - O'ZIDA KO'RSATISH VERSION 🎬                        ║
-    ║                                                                      ║
-    ╠══════════════════════════════════════════════════════════════════════╣
-    ║                                                                      ║
-    ║  🌐 PORT:        {port}                                              ║
-    ║  🔐 ADMIN:       /admin                                             ║
-    ║  📝 ADMIN PASS:  Betmilion1                                         ║
-    ║                                                                      ║
-    ║  📺 QANDAY ISHLAYDI:                                                 ║
-    ║                                                                      ║
-    ║     Google Drive  →  iframe preview (Kinotop o'zida) ✅              ║
-    ║     UZMedia       →  iframe embed (Kinotop o'zida) ✅                ║
-    ║     YouTube       →  iframe embed (Kinotop o'zida) ✅                ║
-    ║                                                                      ║
-    ║  🎯 HAMMA VIDEO KINOTOP O'ZIDA KO'RINADI!                            ║
-    ║                                                                      ║
-    ╚══════════════════════════════════════════════════════════════════════╝
+    ╔══════════════════════════════════════════════════════════════╗
+    ║                                                              ║
+    ║     🎬 KINOTOP - REDIRECT VERSION 🎬                        ║
+    ║                                                              ║
+    ╠══════════════════════════════════════════════════════════════╣
+    ║                                                              ║
+    ║  🌐 PORT:        {port}                                      ║
+    ║  🔐 ADMIN:       /admin                                     ║
+    ║  📝 ADMIN PASS:  Betmilion1                                 ║
+    ║                                                              ║
+    ║  💡 QANDAY ISHLAYDI:                                        ║
+    ║                                                              ║
+    ║     Google Drive  →  /file/ID/preview  (preview sahifasi)   ║
+    ║     UZMedia       →  /embed.html?file=... (embed player)    ║
+    ║     YouTube       →  /embed/ID?autoplay=1                   ║
+    ║     Boshqa URL    →  to'g'ridan-to'g'ri redirect            ║
+    ║                                                              ║
+    ╚══════════════════════════════════════════════════════════════╝
     """)
     app.run(host='0.0.0.0', port=port, debug=True)
