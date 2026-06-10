@@ -3,6 +3,7 @@ import sqlite3
 import re
 import urllib.parse
 import requests
+import xml.etree.ElementTree as ET
 from flask import Flask, render_template, request, redirect, url_for, send_from_directory, jsonify, session
 from datetime import datetime
 
@@ -99,164 +100,143 @@ def get_redirect_url(video_url):
     
     return video_url
 
-def get_short_embed_url(video_url):
-    if not video_url:
-        return video_url
-    
-    platform = detect_platform(video_url)
-    
-    if platform == 'youtube':
-        video_id = extract_youtube_id(video_url)
-        if video_id:
-            return f'https://www.youtube.com/embed/{video_id}?autoplay=1&rel=0&modestbranding=1&showinfo=0&controls=0&fs=0&playsinline=1'
-    
-    if platform == 'instagram':
-        match = re.search(r'instagram\.com/(?:p|reel)/([a-zA-Z0-9_-]+)', video_url)
-        if match:
-            return f'https://www.instagram.com/p/{match.group(1)}/embed'
-    
-    if platform == 'tiktok':
-        match = re.search(r'tiktok\.com/@[\w]+\/video/(\d+)', video_url)
-        if match:
-            return f'https://www.tiktok.com/embed/v2/{match.group(1)}'
-    
-    if platform == 'googledrive':
-        file_id = extract_google_drive_id(video_url)
-        if file_id:
-            return f'https://drive.google.com/file/d/{file_id}/preview'
-    
-    return video_url
+# ============ YOUTUBE TRENDING SHORTS (KANAL KIRITMASDAN) ============
 
-# ============ YOUTUBE API ORQALI SHORTS OLISH ============
-
-def get_channel_id_from_username(username):
-    """Username (@hamidovlive) orqali kanal ID olish"""
-    username = username.lstrip('@')
+def get_trending_shorts_api(region='UZ', max_results=50):
+    """YouTube API orqali trending shortslarni olish - HECH QANDAY KANAL KERAK EMAS"""
     
-    url = "https://www.googleapis.com/youtube/v3/channels"
+    url = "https://www.googleapis.com/youtube/v3/videos"
     params = {
-        'part': 'id',
-        'forUsername': username,
+        'part': 'snippet,statistics',
+        'chart': 'mostPopular',
+        'videoDuration': 'short',  # Faqat shortslar
+        'regionCode': region,
+        'maxResults': max_results,
         'key': YOUTUBE_API_KEY
     }
     
     try:
-        response = requests.get(url, params=params, timeout=10)
+        response = requests.get(url, params=params, timeout=15)
         data = response.json()
         
         if 'error' in data:
             print(f"API xatosi: {data['error'].get('message', 'Unknown')}")
-            return None
+            return []
         
-        if data.get('items'):
-            return data['items'][0]['id']
-        return None
+        shorts = []
+        for item in data.get('items', []):
+            shorts.append({
+                'video_id': item['id'],
+                'title': item['snippet']['title'],
+                'channel': item['snippet']['channelTitle'],
+                'channel_id': item['snippet']['channelId'],
+                'views': item['statistics'].get('viewCount', 0),
+                'likes': item['statistics'].get('likeCount', 0),
+                'thumbnail': item['snippet']['thumbnails'].get('high', {}).get('url', ''),
+                'published_at': item['snippet']['publishedAt'],
+                'embed_url': f"https://www.youtube.com/embed/{item['id']}?autoplay=0&rel=0&modestbranding=1&showinfo=0&playsinline=1"
+            })
+        
+        return shorts
     except Exception as e:
-        print(f"Username error: {e}")
-        return None
+        print(f"Trending API error: {e}")
+        return []
 
-def get_channel_id_from_handle(handle):
-    """Handle (@username) orqali kanal ID olish - to'g'ridan-to'g'ri API orqali"""
-    handle = handle.lstrip('@')
+def get_trending_shorts_by_category(region='UZ', category_id=None, max_results=50):
+    """Kategoriya bo'yicha trending shortslar"""
     
-    url = "https://www.googleapis.com/youtube/v3/channels"
+    url = "https://www.googleapis.com/youtube/v3/videos"
     params = {
-        'part': 'id',
-        'forHandle': handle,
+        'part': 'snippet,statistics',
+        'chart': 'mostPopular',
+        'videoDuration': 'short',
+        'regionCode': region,
+        'maxResults': max_results,
+        'key': YOUTUBE_API_KEY
+    }
+    
+    if category_id:
+        params['videoCategoryId'] = category_id
+    
+    try:
+        response = requests.get(url, params=params, timeout=15)
+        data = response.json()
+        
+        if 'error' in data:
+            return []
+        
+        shorts = []
+        for item in data.get('items', []):
+            shorts.append({
+                'video_id': item['id'],
+                'title': item['snippet']['title'],
+                'channel': item['snippet']['channelTitle'],
+                'views': item['statistics'].get('viewCount', 0),
+                'thumbnail': item['snippet']['thumbnails'].get('high', {}).get('url', ''),
+                'embed_url': f"https://www.youtube.com/embed/{item['id']}?autoplay=0&rel=0&modestbranding=1&playsinline=1"
+            })
+        
+        return shorts
+    except Exception as e:
+        print(f"Category error: {e}")
+        return []
+
+def search_shorts_by_keyword(keyword, max_results=30):
+    """Kalit so'z bo'yicha shortslarni qidirish"""
+    
+    url = "https://www.googleapis.com/youtube/v3/search"
+    params = {
+        'part': 'snippet',
+        'q': keyword,
+        'type': 'video',
+        'videoDuration': 'short',
+        'maxResults': max_results,
         'key': YOUTUBE_API_KEY
     }
     
     try:
-        response = requests.get(url, params=params, timeout=10)
+        response = requests.get(url, params=params, timeout=15)
         data = response.json()
         
         if 'error' in data:
-            return None
+            return []
         
-        if data.get('items'):
-            return data['items'][0]['id']
-        return None
+        shorts = []
+        for item in data.get('items', []):
+            video_id = item['id']['videoId']
+            shorts.append({
+                'video_id': video_id,
+                'title': item['snippet']['title'],
+                'channel': item['snippet']['channelTitle'],
+                'thumbnail': item['snippet']['thumbnails'].get('high', {}).get('url', ''),
+                'embed_url': f"https://www.youtube.com/embed/{video_id}?autoplay=0&rel=0&modestbranding=1&playsinline=1"
+            })
+        
+        return shorts
     except Exception as e:
-        print(f"Handle error: {e}")
-        return None
+        print(f"Search error: {e}")
+        return []
 
-def get_channel_id_from_url(url):
-    """Kanal URL dan kanal ID olish"""
-    if not url:
-        return None
-    
-    # channel/UC... format
-    match = re.search(r'channel/(UC[a-zA-Z0-9_-]+)', url)
-    if match:
-        return match.group(1)
-    
-    # @username format
-    match = re.search(r'@([a-zA-Z0-9_-]+)', url)
-    if match:
-        # Avval handle orqali tekshirish
-        channel_id = get_channel_id_from_handle(match.group(1))
-        if channel_id:
-            return channel_id
-        # Agar handle ishlamasa, username orqali
-        return get_channel_id_from_username(match.group(1))
-    
-    return None
-
-def get_channel_shorts_api(channel_id, max_results=200):
-    """Kanalning barcha shortslarini API orqali olish"""
-    shorts_playlist_id = f"UUSH{channel_id}"
-    
-    all_shorts = []
-    next_page_token = None
-    
-    while True:
-        url = "https://www.googleapis.com/youtube/v3/playlistItems"
-        params = {
-            'part': 'snippet',
-            'playlistId': shorts_playlist_id,
-            'maxResults': 50,
-            'key': YOUTUBE_API_KEY
-        }
-        
-        if next_page_token:
-            params['pageToken'] = next_page_token
-        
-        try:
-            response = requests.get(url, params=params, timeout=10)
-            data = response.json()
-            
-            if 'error' in data:
-                print(f"API xatosi: {data['error'].get('message', 'Unknown')}")
-                break
-            
-            for item in data.get('items', []):
-                snippet = item.get('snippet', {})
-                resource_id = snippet.get('resourceId', {})
-                video_id = resource_id.get('videoId')
-                title = snippet.get('title', 'No title')
-                published_at = snippet.get('publishedAt', '')
-                thumbnails = snippet.get('thumbnails', {})
-                thumbnail = thumbnails.get('high', {}).get('url', '')
-                
-                if video_id:
-                    all_shorts.append({
-                        'video_id': video_id,
-                        'title': title,
-                        'published_at': published_at,
-                        'thumbnail': thumbnail,
-                        'embed_url': f"https://www.youtube.com/embed/{video_id}?autoplay=0&rel=0&modestbranding=1&showinfo=0&controls=1&playsinline=1",
-                        'short_url': f"https://youtube.com/shorts/{video_id}"
-                    })
-            
-            next_page_token = data.get('nextPageToken')
-            if not next_page_token or (max_results > 0 and len(all_shorts) >= max_results):
-                break
-                
-        except Exception as e:
-            print(f"API request error: {e}")
-            break
-    
-    return all_shorts
+# YouTube kategoriyalari
+YOUTUBE_CATEGORIES = {
+    '1': 'Film & Animation',
+    '2': 'Autos & Vehicles',
+    '10': 'Music',
+    '15': 'Pets & Animals',
+    '17': 'Sports',
+    '18': 'Short Movies',
+    '19': 'Travel & Events',
+    '20': 'Gaming',
+    '21': 'Videoblogging',
+    '22': 'People & Blogs',
+    '23': 'Comedy',
+    '24': 'Entertainment',
+    '25': 'News & Politics',
+    '26': 'Howto & Style',
+    '27': 'Education',
+    '28': 'Science & Technology',
+    '29': 'Nonprofits & Activism'
+}
 
 # ============ DATABASE ============
 def get_db():
@@ -321,13 +301,47 @@ def allowed_file(filename, allowed):
 @app.route('/')
 def index():
     with get_db() as conn:
-        shorts = [dict(row) for row in conn.execute("SELECT * FROM shorts ORDER BY sana DESC LIMIT 50").fetchall()]
+        shorts = [dict(row) for row in conn.execute("SELECT * FROM shorts ORDER BY sana DESC LIMIT 20").fetchall()]
         featured = [dict(row) for row in conn.execute("""
             SELECT f.* FROM films f 
             JOIN featured_films ff ON f.id = ff.film_id 
             ORDER BY ff.featured_sana DESC LIMIT 12
         """).fetchall()]
     return render_template('index.html', shorts=shorts, featured_films=featured)
+
+# TRENDING SHORTS SAHIFASI - HECH QANDAY KANAL KIRITMASDAN!
+@app.route('/trending')
+def trending_shorts():
+    """Trending shortslar sahifasi - Dunyodagi eng ommabop shortslar"""
+    region = request.args.get('region', 'UZ')
+    shorts_list = get_trending_shorts_api(region=region, max_results=50)
+    return render_template('trending.html', shorts=shorts_list, region=region, categories=YOUTUBE_CATEGORIES)
+
+@app.route('/trending/category/<category_id>')
+def trending_by_category(category_id):
+    """Kategoriya bo'yicha trending shortslar"""
+    region = request.args.get('region', 'UZ')
+    shorts_list = get_trending_shorts_by_category(region=region, category_id=category_id, max_results=50)
+    category_name = YOUTUBE_CATEGORIES.get(category_id, 'Trending')
+    return render_template('trending.html', shorts=shorts_list, region=region, 
+                          categories=YOUTUBE_CATEGORIES, current_category=category_id, category_name=category_name)
+
+@app.route('/search')
+def search_shorts():
+    """Kalit so'z bo'yicha shortslar"""
+    keyword = request.args.get('q', '')
+    if not keyword:
+        return redirect(url_for('trending_shorts'))
+    
+    shorts_list = search_shorts_by_keyword(keyword, max_results=50)
+    return render_template('search_results.html', shorts=shorts_list, keyword=keyword)
+
+@app.route('/api/trending')
+def api_trending():
+    """API orqali trending shortslar"""
+    region = request.args.get('region', 'UZ')
+    shorts = get_trending_shorts_api(region=region, max_results=30)
+    return jsonify(shorts)
 
 @app.route('/film/<kod>')
 def film_page(kod):
@@ -445,7 +459,7 @@ def admin_add_shorts():
         return "Video URL manzili kerak!", 400
     
     platform = detect_platform(video_url)
-    embed_url = get_short_embed_url(video_url)
+    embed_url = get_short_embed_url(video_url) if 'get_short_embed_url' in dir() else video_url
     video_id = extract_youtube_id(video_url) if platform == 'youtube' else None
     
     with get_db() as conn:
@@ -453,58 +467,6 @@ def admin_add_shorts():
             (sarlavha, tafsilot, embed_url, video_id, platform) 
             VALUES (?, ?, ?, ?, ?)""",
             (sarlavha, tafsilot, embed_url, video_id, platform))
-        conn.commit()
-    
-    return redirect(url_for('admin'))
-
-@app.route('/admin/fetch_channel_shorts_api', methods=['POST'])
-def fetch_channel_shorts_api():
-    if not session.get('admin_logged_in'):
-        return jsonify({"success": False, "message": "Login kerak"}), 401
-    
-    data = request.get_json()
-    channel_url = data.get('channel_url', '').strip()
-    
-    if not channel_url:
-        return jsonify({"success": False, "message": "Kanal URL manzili kerak"}), 400
-    
-    channel_id = get_channel_id_from_url(channel_url)
-    
-    if not channel_id:
-        return jsonify({"success": False, "message": "Kanal ID aniqlanmadi! URL to'g'riligini tekshiring."}), 400
-    
-    shorts_list = get_channel_shorts_api(channel_id)
-    
-    if not shorts_list:
-        return jsonify({"success": False, "message": "Shortslar topilmadi! Kanalda shortslar yo'q yoki API limit tugagan."}), 404
-    
-    added_count = 0
-    with get_db() as conn:
-        for short in shorts_list:
-            try:
-                conn.execute("""
-                    INSERT INTO shorts (sarlavha, embed_url, video_id, platform, thumbnail, tafsilot)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                """, (short['title'], short['embed_url'], short['video_id'], 'youtube', 
-                      short.get('thumbnail', ''), f"📅 {short['published_at'][:10] if short['published_at'] else 'Tarix noma\'lum'}"))
-                added_count += 1
-            except:
-                pass
-        conn.commit()
-    
-    return jsonify({
-        "success": True,
-        "message": f"{added_count} ta short qo'shildi!",
-        "count": added_count
-    })
-
-@app.route('/admin/clear_shorts', methods=['POST'])
-def admin_clear_shorts():
-    if not session.get('admin_logged_in'):
-        return redirect(url_for('admin'))
-    
-    with get_db() as conn:
-        conn.execute("DELETE FROM shorts")
         conn.commit()
     
     return redirect(url_for('admin'))
@@ -552,6 +514,33 @@ def admin_toggle_featured(film_id):
     
     return redirect(url_for('admin'))
 
+@app.route('/admin/add_trending_shorts', methods=['POST'])
+def admin_add_trending_shorts():
+    """Admin panel orqali trending shortslarni bazaga qo'shish"""
+    if not session.get('admin_logged_in'):
+        return redirect(url_for('admin'))
+    
+    region = request.form.get('region', 'UZ')
+    count = int(request.form.get('count', 30))
+    
+    shorts_list = get_trending_shorts_api(region=region, max_results=count)
+    
+    added_count = 0
+    with get_db() as conn:
+        for short in shorts_list:
+            try:
+                conn.execute("""
+                    INSERT INTO shorts (sarlavha, embed_url, video_id, platform, thumbnail, tafsilot)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """, (short['title'], short['embed_url'], short['video_id'], 'youtube', 
+                      short.get('thumbnail', ''), f"📺 {short['channel']} | 👁️ {int(short['views']):,} views"))
+                added_count += 1
+            except:
+                pass
+        conn.commit()
+    
+    return f"{added_count} ta trending short qo'shildi! <a href='/admin'>Ortga</a>"
+
 @app.route('/static/uploads/posters/<filename>')
 def serve_poster(filename):
     return send_from_directory(UPLOAD_FOLDER_POSTERS, filename)
@@ -560,16 +549,37 @@ def serve_poster(filename):
 def not_found(error):
     return "<h1>404 - Sahifa topilmadi!</h1><a href='/'>Bosh sahifaga qaytish</a>", 404
 
+# ============ SHORT EMBED URL ============
+def get_short_embed_url(video_url):
+    if not video_url:
+        return video_url
+    
+    platform = detect_platform(video_url)
+    
+    if platform == 'youtube':
+        video_id = extract_youtube_id(video_url)
+        if video_id:
+            return f'https://www.youtube.com/embed/{video_id}?autoplay=0&rel=0&modestbranding=1&showinfo=0&controls=1&playsinline=1'
+    return video_url
+
+# ============ MAIN ============
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
-    print(f"""
+    print("""
     ╔══════════════════════════════════════════════════════════════════════════╗
-    ║                    🎬 KINOTOP - FULL VERSION 🎬                           ║
+    ║                    🎬 KINOTOP - TRENDING SHORTS 🎬                        ║
     ╠══════════════════════════════════════════════════════════════════════════╣
-    ║  🌐 PORT:        {port}                                                   ║
+    ║                                                                          ║
+    ║  🌐 PORT:        {}                                                       ║
     ║  🔐 ADMIN:       /admin                                                  ║
     ║  📝 PASS:        Betmilion1                                              ║
-    ║  🎯 YouTube API: Sozlangan                                               ║
+    ║                                                                          ║
+    ║  🔥 TRENDING SHORTS: /trending                                           ║
+    ║  🔍 SEARCH SHORTS: /search?q=keyword                                     ║
+    ║  📺 API TRENDING: /api/trending                                          ║
+    ║                                                                          ║
+    ║  ⚡ YouTube API orqali trending shortslar - HECH QANDAY KANAL KERAK EMAS! ║
+    ║                                                                          ║
     ╚══════════════════════════════════════════════════════════════════════════╝
-    """)
+    """.format(port))
     app.run(host='0.0.0.0', port=port, debug=False, threaded=True)
