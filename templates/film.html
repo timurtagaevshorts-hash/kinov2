@@ -3,9 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Kinotop | Film tomosha qilish</title>
+    <title>Kinotop | Professional video pleer</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- HLS.js - M3U8 formatlar uchun -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
         * {
             margin: 0;
@@ -23,14 +25,15 @@
             position: fixed;
         }
 
-        .video-container {
+        .main-container {
             position: relative;
             width: 100%;
             height: 100vh;
             background: #000;
         }
 
-        .video-wrapper {
+        /* Video konteyner */
+        .video-container {
             position: relative;
             width: 100%;
             height: 100%;
@@ -40,31 +43,37 @@
             justify-content: center;
         }
 
-        /* VIDEO - TO'LIQ EKRAN QILIB (object-fit: cover bilan) */
-        .video-wrapper iframe {
+        #videoPlayer {
             width: 100%;
             height: 100%;
-            border: none;
-            position: absolute;
-            top: 0;
-            left: 0;
-        }
-
-        .video-wrapper video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;  /* TELEFONDA TO'LIQ EKRAN QILADI */
+            object-fit: cover;
             background: #000;
         }
 
-        /* Orqaga qaytish tugmasi */
-        .back-btn {
+        /* Overlay boshqaruvlar */
+        .controls-overlay {
             position: fixed;
-            top: 15px;
-            left: 15px;
-            z-index: 100;
-            background: rgba(0,0,0,0.6);
-            backdrop-filter: blur(10px);
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: transparent;
+            z-index: 20;
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+
+        .controls-overlay.hide {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* Tugmalar */
+        .back-btn, .fullscreen-btn, .settings-btn {
+            position: fixed;
+            z-index: 30;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(15px);
             width: 48px;
             height: 48px;
             border-radius: 50%;
@@ -72,145 +81,138 @@
             align-items: center;
             justify-content: center;
             color: white;
-            font-size: 1.3rem;
             cursor: pointer;
             border: 1px solid rgba(255,255,255,0.2);
             transition: all 0.2s ease;
         }
 
-        .back-btn:active {
-            transform: scale(0.92);
-            background: rgba(102,126,234,0.8);
+        .back-btn {
+            top: 15px;
+            left: 15px;
         }
 
-        /* Fullscreen tugmasi */
         .fullscreen-btn {
-            position: fixed;
-            bottom: 25px;
-            right: 20px;
-            z-index: 100;
-            background: rgba(0,0,0,0.6);
-            backdrop-filter: blur(10px);
-            width: 52px;
-            height: 52px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 1.4rem;
-            cursor: pointer;
-            border: 1px solid rgba(255,255,255,0.2);
-            transition: all 0.2s ease;
+            bottom: 80px;
+            right: 15px;
         }
 
-        .fullscreen-btn:active {
+        .settings-btn {
+            bottom: 80px;
+            right: 80px;
+        }
+
+        .back-btn:active, .fullscreen-btn:active, .settings-btn:active {
             transform: scale(0.92);
-            background: rgba(102,126,234,0.8);
+            background: rgba(102,126,234,0.9);
+        }
+
+        /* Progress bar */
+        .progress-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 30;
+            background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+            padding: 15px 15px 10px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 4px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 2px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .progress-filled {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            border-radius: 2px;
+            position: relative;
+        }
+
+        .progress-buffered {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            background: rgba(255,255,255,0.3);
+            border-radius: 2px;
+            width: 0%;
+        }
+
+        .time-info {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 8px;
+            color: white;
+            font-size: 12px;
+            opacity: 0.8;
         }
 
         /* Sensor boshqaruv */
         .gesture-area {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            top: 0;
-            z-index: 15;
-            background: transparent;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            pointer-events: none;
-        }
-
-        .gesture-top {
-            pointer-events: auto;
-            height: 30%;
-            width: 100%;
-        }
-
-        .gesture-bottom {
-            pointer-events: auto;
-            height: 20%;
-            width: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .gesture-left, .gesture-right {
-            pointer-events: auto;
-            width: 20%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .gesture-left {
-            position: absolute;
-            left: 0;
-            top: 0;
-            height: 100%;
-        }
-
-        .gesture-right {
-            position: absolute;
-            right: 0;
-            top: 0;
-            height: 100%;
-        }
-
-        .gesture-center {
-            pointer-events: auto;
-            width: 60%;
-            height: 100%;
-            margin: 0 auto;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .gesture-hint {
-            background: rgba(0,0,0,0.5);
-            backdrop-filter: blur(20px);
-            padding: 8px 16px;
-            border-radius: 30px;
-            color: white;
-            font-size: 0.7rem;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            opacity: 0;
-            transition: opacity 0.3s;
-            pointer-events: none;
-        }
-
-        .gesture-hint.show {
-            opacity: 1;
-        }
-
-        .gesture-hint i {
-            font-size: 0.8rem;
-        }
-
-        /* Progress bar */
-        .video-progress {
             position: fixed;
             bottom: 0;
             left: 0;
             right: 0;
-            height: 3px;
-            background: rgba(255,255,255,0.2);
-            z-index: 50;
+            top: 0;
+            z-index: 25;
+            display: flex;
+            pointer-events: none;
         }
 
-        .video-progress-filled {
-            width: 0%;
+        .gesture-left, .gesture-right, .gesture-center, .gesture-top {
+            pointer-events: auto;
+        }
+
+        .gesture-left {
+            width: 25%;
             height: 100%;
-            background: linear-gradient(90deg, #667eea, #764ba2);
-            transition: width 0.1s linear;
+        }
+
+        .gesture-right {
+            width: 25%;
+            height: 100%;
+        }
+
+        .gesture-center {
+            width: 50%;
+            height: 100%;
+        }
+
+        .gesture-top {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 20%;
+        }
+
+        /* Hintlar */
+        .gesture-hint {
+            position: fixed;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(20px);
+            padding: 12px 20px;
+            border-radius: 40px;
+            color: white;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            opacity: 0;
+            transition: opacity 0.2s;
+            pointer-events: none;
+            z-index: 100;
+            font-weight: 500;
+        }
+
+        .gesture-hint.show {
+            opacity: 1;
         }
 
         /* Loading */
@@ -227,7 +229,7 @@
             justify-content: center;
             flex-direction: column;
             gap: 20px;
-            transition: opacity 0.3s;
+            transition: opacity 0.5s;
         }
 
         .loading.hide {
@@ -236,9 +238,9 @@
         }
 
         .spinner {
-            width: 50px;
-            height: 50px;
-            border: 3px solid rgba(102,126,234,0.3);
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(102,126,234,0.3);
             border-top-color: #667eea;
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
@@ -250,27 +252,85 @@
 
         .loading-text {
             color: white;
-            font-size: 0.9rem;
+            font-size: 1rem;
+            letter-spacing: 1px;
         }
 
-        .error-msg {
+        /* Xatolik */
+        .error-message {
             position: fixed;
-            bottom: 30px;
+            bottom: 100px;
             left: 20px;
             right: 20px;
             background: rgba(220,53,69,0.95);
-            padding: 14px;
+            padding: 15px;
             border-radius: 12px;
             color: white;
             text-align: center;
             z-index: 200;
             transform: translateY(100px);
             transition: transform 0.3s;
-            font-size: 0.85rem;
+            font-weight: 500;
         }
 
-        .error-msg.show {
+        .error-message.show {
             transform: translateY(0);
+        }
+
+        /* Settings panel */
+        .settings-panel {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0,0,0,0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 20px 20px 0 0;
+            padding: 20px;
+            z-index: 150;
+            transform: translateY(100%);
+            transition: transform 0.3s ease;
+            color: white;
+        }
+
+        .settings-panel.show {
+            transform: translateY(0);
+        }
+
+        .settings-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .speed-option {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .speed-btn {
+            background: rgba(255,255,255,0.1);
+            padding: 10px 20px;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .speed-btn.active {
+            background: #667eea;
+        }
+
+        .close-settings {
+            text-align: center;
+            padding: 10px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 30px;
+            cursor: pointer;
+            margin-top: 10px;
         }
 
         /* Safe area */
@@ -279,9 +339,8 @@
                 top: max(15px, env(safe-area-inset-top));
                 left: max(15px, env(safe-area-inset-left));
             }
-            .fullscreen-btn {
-                bottom: max(25px, env(safe-area-inset-bottom));
-                right: max(20px, env(safe-area-inset-right));
+            .progress-container {
+                padding-bottom: max(10px, env(safe-area-inset-bottom));
             }
         }
     </style>
@@ -293,175 +352,360 @@
     <div class="loading-text">🎬 Film yuklanmoqda...</div>
 </div>
 
-<div class="video-container">
+<div class="main-container">
+    <div class="video-container">
+        <video id="videoPlayer" playsinline webkit-playsinline preload="auto"></video>
+    </div>
+
+    <!-- Boshqaruv tugmalari -->
     <div class="back-btn" id="backBtn">
         <i class="fas fa-arrow-left"></i>
     </div>
-    
+    <div class="settings-btn" id="settingsBtn">
+        <i class="fas fa-cog"></i>
+    </div>
     <div class="fullscreen-btn" id="fullscreenBtn">
         <i class="fas fa-expand"></i>
     </div>
 
-    <div class="video-wrapper" id="videoWrapper">
-        {% if film.platform == 'direct' %}
-            <video id="videoPlayer" src="{{ film.video_url }}" controls autoplay playsinline webkit-playsinline style="width:100%;height:100%;object-fit:cover"></video>
-        {% else %}
-            <iframe id="videoPlayer" src="{{ film.video_url }}" allow="autoplay; fullscreen" allowfullscreen style="width:100%;height:100%"></iframe>
-        {% endif %}
-    </div>
-
-    <!-- Sensor boshqaruv zonalari -->
-    <div class="gesture-area">
-        <div class="gesture-top" id="gestureTop"></div>
-        <div class="gesture-bottom">
-            <div class="gesture-left" id="gestureLeft">
-                <div class="gesture-hint" id="leftHint">
-                    <i class="fas fa-backward"></i> 10s
-                </div>
-            </div>
-            <div class="gesture-center" id="gestureCenter">
-                <div class="gesture-hint" id="centerHint">
-                    <i class="fas fa-play"></i>
-                </div>
-            </div>
-            <div class="gesture-right" id="gestureRight">
-                <div class="gesture-hint" id="rightHint">
-                    10s <i class="fas fa-forward"></i>
-                </div>
-            </div>
+    <!-- Progress bar -->
+    <div class="progress-container" id="progressContainer">
+        <div class="progress-bar" id="progressBar">
+            <div class="progress-buffered" id="bufferedBar"></div>
+            <div class="progress-filled" id="progressFilled"></div>
+        </div>
+        <div class="time-info">
+            <span id="currentTime">00:00</span>
+            <span id="duration">00:00</span>
         </div>
     </div>
 
-    <div class="video-progress">
-        <div class="video-progress-filled" id="progressFilled"></div>
+    <!-- Sensor zonalar -->
+    <div class="gesture-area">
+        <div class="gesture-left" id="gestureLeft"></div>
+        <div class="gesture-center" id="gestureCenter"></div>
+        <div class="gesture-right" id="gestureRight"></div>
+        <div class="gesture-top" id="gestureTop"></div>
+    </div>
+
+    <!-- Overlay (boshqaruvlarni avtomatik yashirish uchun) -->
+    <div class="controls-overlay" id="controlsOverlay"></div>
+
+    <!-- Hintlar -->
+    <div id="leftHint" class="gesture-hint" style="left: 20px; top: 50%; transform: translateY(-50%);">
+        <i class="fas fa-backward"></i> -10s
+    </div>
+    <div id="rightHint" class="gesture-hint" style="right: 20px; top: 50%; transform: translateY(-50%);">
+        +10s <i class="fas fa-forward"></i>
+    </div>
+    <div id="centerHint" class="gesture-hint" style="left: 50%; top: 50%; transform: translate(-50%, -50%);">
+        <i class="fas fa-play"></i>
+    </div>
+    <div id="topHint" class="gesture-hint" style="left: 50%; top: 30%; transform: translateX(-50%);">
+        <i class="fas fa-expand"></i> Fullscreen
     </div>
 </div>
 
-<div class="error-msg" id="errorMsg">
-    <i class="fas fa-exclamation-triangle"></i> Video yuklashda xatolik
+<div class="settings-panel" id="settingsPanel">
+    <div class="settings-title">⚡ Tezlik</div>
+    <div class="speed-option">
+        <div class="speed-btn" data-speed="0.5">0.5x</div>
+        <div class="speed-btn" data-speed="0.75">0.75x</div>
+        <div class="speed-btn active" data-speed="1">1x</div>
+        <div class="speed-btn" data-speed="1.25">1.25x</div>
+        <div class="speed-btn" data-speed="1.5">1.5x</div>
+        <div class="speed-btn" data-speed="2">2x</div>
+    </div>
+    <div class="close-settings" id="closeSettings">Yopish</div>
+</div>
+
+<div class="error-message" id="errorMsg">
+    <i class="fas fa-exclamation-triangle"></i> Video yuklanmadi
 </div>
 
 <script>
     (function() {
+        // DOM elementlari
+        const video = document.getElementById('videoPlayer');
         const loading = document.getElementById('loading');
         const errorMsg = document.getElementById('errorMsg');
         const backBtn = document.getElementById('backBtn');
         const fullscreenBtn = document.getElementById('fullscreenBtn');
+        const settingsBtn = document.getElementById('settingsBtn');
+        const settingsPanel = document.getElementById('settingsPanel');
+        const closeSettings = document.getElementById('closeSettings');
         const progressFilled = document.getElementById('progressFilled');
+        const bufferedBar = document.getElementById('bufferedBar');
+        const progressBar = document.getElementById('progressBar');
+        const currentTimeSpan = document.getElementById('currentTime');
+        const durationSpan = document.getElementById('duration');
+        const controlsOverlay = document.getElementById('controlsOverlay');
         
+        // Sensor elementlari
         const gestureLeft = document.getElementById('gestureLeft');
         const gestureRight = document.getElementById('gestureRight');
         const gestureCenter = document.getElementById('gestureCenter');
         const gestureTop = document.getElementById('gestureTop');
+        
+        // Hint elementlari
         const leftHint = document.getElementById('leftHint');
         const rightHint = document.getElementById('rightHint');
         const centerHint = document.getElementById('centerHint');
+        const topHint = document.getElementById('topHint');
         
-        let isPlaying = true;
-        let isIframe = true;
-        let hideHintsTimer = null;
+        // Holat o'zgaruvchilari
+        let controlsTimeout;
+        let hideHintsTimeout;
+        let hls = null;
+        let isFullscreen = false;
+        let isPlaying = false;
         
-        function showHint(element, show = true) {
+        // Video URL (Templatedan yoki default)
+        const videoUrl = '{{ film.video_url }}';
+        const platform = '{{ film.platform }}';
+        
+        // Xatolik ko'rsatish
+        function showError(text) {
+            errorMsg.innerHTML = '<i class="fas fa-exclamation-triangle"></i> ' + text;
+            errorMsg.classList.add('show');
+            setTimeout(() => {
+                errorMsg.classList.remove('show');
+            }, 5000);
+        }
+        
+        // Hint ko'rsatish
+        function showHint(hintElement, show = true) {
             if (show) {
-                element.classList.add('show');
-                if (hideHintsTimer) clearTimeout(hideHintsTimer);
-                hideHintsTimer = setTimeout(() => {
+                hintElement.classList.add('show');
+                if (hideHintsTimeout) clearTimeout(hideHintsTimeout);
+                hideHintsTimeout = setTimeout(() => {
                     leftHint.classList.remove('show');
                     rightHint.classList.remove('show');
                     centerHint.classList.remove('show');
+                    topHint.classList.remove('show');
                 }, 800);
             }
         }
         
-        function showError(text) {
-            errorMsg.innerHTML = '<i class="fas fa-exclamation-triangle"></i> ' + text;
-            errorMsg.classList.add('show');
-            setTimeout(() => errorMsg.classList.remove('show'), 4000);
-        }
-        
-        setTimeout(() => {
-            loading.classList.add('hide');
-        }, 1500);
-        
-        backBtn.addEventListener('click', () => {
-            window.location.href = '/';
-        });
-        
-        function getVideoElement() {
-            const video = document.getElementById('videoPlayer');
-            if (video && video.tagName === 'VIDEO') {
-                isIframe = false;
-                return video;
+        // Vaqtni formatlash
+        function formatTime(seconds) {
+            if (isNaN(seconds)) return '00:00';
+            const hrs = Math.floor(seconds / 3600);
+            const mins = Math.floor((seconds % 3600) / 60);
+            const secs = Math.floor(seconds % 60);
+            if (hrs > 0) {
+                return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
             }
-            isIframe = true;
-            return null;
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
         }
         
-        function togglePlayPause() {
-            const video = getVideoElement();
-            if (video && !isIframe) {
-                if (video.paused) {
-                    video.play();
-                    isPlaying = true;
-                    centerHint.innerHTML = '<i class="fas fa-pause"></i>';
-                } else {
-                    video.pause();
-                    isPlaying = false;
-                    centerHint.innerHTML = '<i class="fas fa-play"></i>';
-                }
-                showHint(centerHint, true);
-            }
-        }
-        
-        function seekBackward() {
-            const video = getVideoElement();
-            if (video && !isIframe) {
-                video.currentTime = Math.max(0, video.currentTime - 10);
-                showHint(leftHint, true);
-                updateProgress();
-            }
-        }
-        
-        function seekForward() {
-            const video = getVideoElement();
-            if (video && !isIframe) {
-                video.currentTime = Math.min(video.duration, video.currentTime + 10);
-                showHint(rightHint, true);
-                updateProgress();
-            }
-        }
-        
+        // Progressni yangilash
         function updateProgress() {
-            const video = getVideoElement();
-            if (video && !isIframe && video.duration) {
+            if (video.duration) {
                 const percent = (video.currentTime / video.duration) * 100;
                 progressFilled.style.width = percent + '%';
+                currentTimeSpan.textContent = formatTime(video.currentTime);
+            }
+            
+            // Buffered progress
+            if (video.buffered.length > 0) {
+                const bufferedEnd = video.buffered.end(video.buffered.length - 1);
+                const bufferedPercent = (bufferedEnd / video.duration) * 100;
+                bufferedBar.style.width = bufferedPercent + '%';
             }
         }
         
-        const video = document.getElementById('videoPlayer');
-        if (video && video.tagName === 'VIDEO') {
-            video.addEventListener('timeupdate', updateProgress);
-            video.addEventListener('loadedmetadata', () => {
-                progressFilled.style.width = '0%';
-            });
-            video.addEventListener('play', () => {
-                isPlaying = true;
-                centerHint.innerHTML = '<i class="fas fa-pause"></i>';
-            });
-            video.addEventListener('pause', () => {
-                isPlaying = false;
-                centerHint.innerHTML = '<i class="fas fa-play"></i>';
-            });
+        // Videoni yuklash
+        function loadVideo() {
+            if (!videoUrl) {
+                showError('Video URL topilmadi');
+                loading.classList.add('hide');
+                return;
+            }
             
-            // Videoni avtomatik to'liq ekran qilish (telefon uchun)
-            video.addEventListener('loadeddata', () => {
-                // Telefonda videoni maksimal qilish
-                video.style.objectFit = 'cover';
-            });
+            // M3U8 (HLS) formatni aniqlash
+            if (videoUrl.includes('.m3u8') || videoUrl.includes('m3u8')) {
+                if (Hls.isSupported()) {
+                    if (hls) hls.destroy();
+                    hls = new Hls({
+                        enableWorker: true,
+                        lowLatencyMode: true,
+                        maxBufferLength: 30
+                    });
+                    hls.loadSource(videoUrl);
+                    hls.attachMedia(video);
+                    hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                        loading.classList.add('hide');
+                        video.play().catch(e => console.log('Autoplay blocked:', e));
+                    });
+                    hls.on(Hls.Events.ERROR, (event, data) => {
+                        if (data.fatal) {
+                            showError('Video yuklashda xatolik');
+                            loading.classList.add('hide');
+                        }
+                    });
+                } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                    video.src = videoUrl;
+                    loading.classList.add('hide');
+                    video.play().catch(e => console.log('Autoplay blocked:', e));
+                } else {
+                    showError('Bu format qo\'llab-quvvatlanmaydi');
+                    loading.classList.add('hide');
+                }
+            } 
+            // Direct video URL
+            else if (videoUrl.match(/\.(mp4|webm|ogg|mov|avi|mkv)$/i) || platform === 'direct') {
+                video.src = videoUrl;
+                video.load();
+                video.addEventListener('loadedmetadata', () => {
+                    loading.classList.add('hide');
+                    video.play().catch(e => console.log('Autoplay blocked:', e));
+                });
+                video.addEventListener('error', (e) => {
+                    showError('Video format xatosi');
+                    loading.classList.add('hide');
+                });
+            }
+            // YouTube yoki boshqa embed
+            else {
+                // Iframe uchun - embed URL
+                let embedUrl = videoUrl;
+                if (videoUrl.includes('youtube.com/watch') || videoUrl.includes('youtu.be')) {
+                    const videoId = videoUrl.split('v=')[1]?.split('&')[0] || videoUrl.split('/').pop();
+                    embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&controls=1&rel=0`;
+                } else if (videoUrl.includes('vimeo.com')) {
+                    const vimeoId = videoUrl.split('/').pop();
+                    embedUrl = `https://player.vimeo.com/video/${vimeoId}?autoplay=1`;
+                }
+                
+                // Iframe yaratish
+                const iframe = document.createElement('iframe');
+                iframe.src = embedUrl;
+                iframe.style.width = '100%';
+                iframe.style.height = '100%';
+                iframe.style.border = 'none';
+                iframe.allow = 'autoplay; fullscreen; encrypted-media';
+                iframe.allowFullscreen = true;
+                
+                video.style.display = 'none';
+                document.querySelector('.video-container').appendChild(iframe);
+                loading.classList.add('hide');
+                
+                iframe.onload = () => {
+                    loading.classList.add('hide');
+                };
+                return;
+            }
         }
         
-        // Sensor boshqaruv
+        // Play/Pause
+        function togglePlayPause() {
+            if (video.paused) {
+                video.play();
+                isPlaying = true;
+                centerHint.innerHTML = '<i class="fas fa-pause"></i> Pause';
+            } else {
+                video.pause();
+                isPlaying = false;
+                centerHint.innerHTML = '<i class="fas fa-play"></i> Play';
+            }
+            showHint(centerHint, true);
+            showControls();
+        }
+        
+        // 10 soniya orqaga
+        function seekBackward() {
+            video.currentTime = Math.max(0, video.currentTime - 10);
+            showHint(leftHint, true);
+            showControls();
+        }
+        
+        // 10 soniya oldinga
+        function seekForward() {
+            video.currentTime = Math.min(video.duration, video.currentTime + 10);
+            showHint(rightHint, true);
+            showControls();
+        }
+        
+        // Fullscreen
+        function toggleFullscreen() {
+            const container = document.querySelector('.main-container');
+            if (!document.fullscreenElement) {
+                container.requestFullscreen().catch(err => {
+                    console.log('Fullscreen error:', err);
+                });
+                fullscreenBtn.innerHTML = '<i class="fas fa-compress"></i>';
+                isFullscreen = true;
+            } else {
+                document.exitFullscreen();
+                fullscreenBtn.innerHTML = '<i class="fas fa-expand"></i>';
+                isFullscreen = false;
+            }
+        }
+        
+        // Boshqaruvlarni ko'rsatish
+        function showControls() {
+            controlsOverlay.classList.remove('hide');
+            document.querySelector('.progress-container').style.opacity = '1';
+            document.querySelector('.back-btn').style.opacity = '1';
+            document.querySelector('.fullscreen-btn').style.opacity = '1';
+            document.querySelector('.settings-btn').style.opacity = '1';
+            
+            if (controlsTimeout) clearTimeout(controlsTimeout);
+            controlsTimeout = setTimeout(() => {
+                if (isPlaying) {
+                    controlsOverlay.classList.add('hide');
+                    document.querySelector('.progress-container').style.opacity = '0';
+                    document.querySelector('.back-btn').style.opacity = '0';
+                    document.querySelector('.fullscreen-btn').style.opacity = '0';
+                    document.querySelector('.settings-btn').style.opacity = '0';
+                }
+            }, 3000);
+        }
+        
+        // Tezlikni o'zgartirish
+        function setPlaybackSpeed(speed) {
+            video.playbackRate = parseFloat(speed);
+            document.querySelectorAll('.speed-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.speed === speed) {
+                    btn.classList.add('active');
+                }
+            });
+            settingsPanel.classList.remove('show');
+        }
+        
+        // Progress barga bosish
+        function seekTo(e) {
+            const rect = progressBar.getBoundingClientRect();
+            const pos = (e.clientX - rect.left) / rect.width;
+            video.currentTime = pos * video.duration;
+            showControls();
+        }
+        
+        // Event listenerlar
+        video.addEventListener('loadedmetadata', () => {
+            durationSpan.textContent = formatTime(video.duration);
+            loading.classList.add('hide');
+        });
+        
+        video.addEventListener('timeupdate', updateProgress);
+        video.addEventListener('play', () => {
+            isPlaying = true;
+            centerHint.innerHTML = '<i class="fas fa-pause"></i> Pause';
+        });
+        video.addEventListener('pause', () => {
+            isPlaying = false;
+            centerHint.innerHTML = '<i class="fas fa-play"></i> Play';
+        });
+        video.addEventListener('waiting', () => {
+            loading.classList.remove('hide');
+        });
+        video.addEventListener('canplay', () => {
+            loading.classList.add('hide');
+        });
+        
+        // Sensor boshqaruvlar
         let touchStartX = 0, touchStartY = 0;
         
         gestureLeft.addEventListener('touchstart', (e) => {
@@ -472,13 +716,9 @@
         
         gestureLeft.addEventListener('touchend', (e) => {
             e.preventDefault();
-            const touchEndX = e.changedTouches[0].clientX;
-            const diffX = touchStartX - touchEndX;
+            const diffX = touchStartX - e.changedTouches[0].clientX;
             const diffY = Math.abs(touchStartY - e.changedTouches[0].clientY);
-            
-            if (diffX > 30 && diffY < 50) {
-                seekBackward();
-            }
+            if (diffX > 30 && diffY < 50) seekBackward();
         });
         
         gestureRight.addEventListener('touchstart', (e) => {
@@ -489,66 +729,46 @@
         
         gestureRight.addEventListener('touchend', (e) => {
             e.preventDefault();
-            const touchEndX = e.changedTouches[0].clientX;
-            const diffX = touchEndX - touchStartX;
+            const diffX = e.changedTouches[0].clientX - touchStartX;
             const diffY = Math.abs(touchStartY - e.changedTouches[0].clientY);
-            
-            if (diffX > 30 && diffY < 50) {
-                seekForward();
-            }
+            if (diffX > 30 && diffY < 50) seekForward();
         });
         
-        gestureCenter.addEventListener('click', (e) => {
-            e.preventDefault();
-            togglePlayPause();
-        });
+        gestureCenter.addEventListener('click', togglePlayPause);
         
-        let topTouchStart = 0;
         gestureTop.addEventListener('touchstart', (e) => {
-            topTouchStart = e.touches[0].clientY;
+            e.preventDefault();
+            touchStartY = e.touches[0].clientY;
         });
         
         gestureTop.addEventListener('touchend', (e) => {
-            const topTouchEnd = e.changedTouches[0].clientY;
-            if (topTouchStart - topTouchEnd > 50) {
-                toggleFullScreen();
+            e.preventDefault();
+            const diffY = touchStartY - e.changedTouches[0].clientY;
+            if (diffY > 50) {
+                toggleFullscreen();
+                showHint(topHint, true);
             }
         });
         
-        function toggleFullScreen() {
-            const container = document.querySelector('.video-container');
-            if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-                if (container.requestFullscreen) {
-                    container.requestFullscreen();
-                } else if (container.webkitRequestFullscreen) {
-                    container.webkitRequestFullscreen();
-                }
-                fullscreenBtn.innerHTML = '<i class="fas fa-compress"></i>';
-            } else {
-                if (document.exitFullscreen) {
-                    document.exitFullscreen();
-                } else if (document.webkitExitFullscreen) {
-                    document.webkitExitFullscreen();
-                }
-                fullscreenBtn.innerHTML = '<i class="fas fa-expand"></i>';
-            }
-        }
+        // Tugmalar
+        backBtn.addEventListener('click', () => window.location.href = '/');
+        fullscreenBtn.addEventListener('click', toggleFullscreen);
+        settingsBtn.addEventListener('click', () => {
+            settingsPanel.classList.add('show');
+            showControls();
+        });
+        closeSettings.addEventListener('click', () => settingsPanel.classList.remove('show'));
         
-        fullscreenBtn.addEventListener('click', toggleFullScreen);
-        
-        document.addEventListener('fullscreenchange', () => {
-            if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-                fullscreenBtn.innerHTML = '<i class="fas fa-expand"></i>';
-            }
+        document.querySelectorAll('.speed-btn').forEach(btn => {
+            btn.addEventListener('click', () => setPlaybackSpeed(btn.dataset.speed));
         });
         
-        const iframePlayer = document.getElementById('videoPlayer');
-        if (iframePlayer && iframePlayer.tagName === 'IFRAME') {
-            iframePlayer.onload = () => {
-                setTimeout(() => loading.classList.add('hide'), 500);
-            };
-        }
+        progressBar.addEventListener('click', seekTo);
         
+        // Overlay bosilganda boshqaruvlarni ko'rsatish
+        controlsOverlay.addEventListener('click', showControls);
+        
+        // Klaviatura
         document.addEventListener('keydown', (e) => {
             if (e.key === ' ' || e.key === 'Space') {
                 e.preventDefault();
@@ -558,20 +778,34 @@
             } else if (e.key === 'ArrowRight') {
                 seekForward();
             } else if (e.key === 'f' || e.key === 'F') {
-                toggleFullScreen();
+                toggleFullscreen();
             }
         });
         
-        // Chap chetidan surish orqaga qaytish
+        // Chetdan surish orqaga qaytish
         document.addEventListener('touchstart', (e) => {
             touchStartX = e.touches[0].clientX;
         });
         document.addEventListener('touchend', (e) => {
-            const touchEnd = e.changedTouches[0].clientX;
-            if (touchStartX < 30 && touchEnd > touchStartX + 60) {
+            const diffX = e.changedTouches[0].clientX - touchStartX;
+            if (touchStartX < 30 && diffX > 60) {
                 window.location.href = '/';
             }
         });
+        
+        // Fullscreen change
+        document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement) {
+                fullscreenBtn.innerHTML = '<i class="fas fa-expand"></i>';
+                isFullscreen = false;
+            }
+        });
+        
+        // Yuklashni boshlash
+        loadVideo();
+        
+        // Avtomatik boshqaruvlarni yashirish
+        setTimeout(showControls, 1000);
     })();
 </script>
 </body>
