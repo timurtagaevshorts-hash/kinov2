@@ -1,292 +1,209 @@
 import os
 import sqlite3
 import re
+import urllib.parse
 from flask import Flask, render_template, request, redirect, url_for, send_from_directory, jsonify, session
-from datetime import datetime
 
 app = Flask(__name__)
 app.secret_key = 'kinotop-secret-key-2024'
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_FOLDER_POSTERS = os.path.join(BASE_DIR, 'static/uploads/posters')
-
 os.makedirs(UPLOAD_FOLDER_POSTERS, exist_ok=True)
 
-# ============ ADMIN PAROLI ============
 ADMIN_PASSWORD = 'Betmilion1'
-# ======================================
-
 ALLOWED_IMAGE = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
-# ============ VIDEO PLATFORMALARINI ANIQLASH ============
+# ============ UNIVERSAL VIDEO ANIQLASH ============
 
-def extract_google_drive_id(url):
-    """Google Drive dan fayl ID olish"""
-    patterns = [
-        r'(?:drive\.google\.com\/file\/d\/)([a-zA-Z0-9_-]+)',
-        r'(?:drive\.google\.com\/open\?id=)([a-zA-Z0-9_-]+)',
-        r'(?:drive\.google\.com\/uc\?id=)([a-zA-Z0-9_-]+)',
-        r'(?:drive\.google\.com\/drive\/folders\/)([a-zA-Z0-9_-]+)',
-        r'^([a-zA-Z0-9_-]{28,})$'
-    ]
-    for pattern in patterns:
-        match = re.search(pattern, url)
-        if match:
-            return match.group(1)
-    return None
-
-def get_google_drive_embed_url(file_id, folder=False):
-    """Google Drive embed URL yaratish"""
-    if folder:
-        return f'https://drive.google.com/embeddedfolderview?id={file_id}#list'
-    return f'https://drive.google.com/file/d/{file_id}/preview'
-
-def extract_uzmedia_info(url):
-    """Uzmedia.tv dan video ma'lumot olish"""
-    if 'uzmedia.tv' in url:
-        if 'embed.html' in url:
-            return {
-                'platform': 'uzmedia',
-                'embed_url': url,
-                'thumbnail': None
-            }
-        elif 'files.uzmedia.tv' in url or '.mp4' in url:
-            return {
-                'platform': 'uzmedia',
-                'embed_url': f'https://uzmedia.tv/embed.html?file={url}',
-                'thumbnail': None
-            }
-        else:
-            match = re.search(r'/(\d+)-', url)
-            if match:
-                film_id = match.group(1)
-                return {
-                    'platform': 'uzmedia',
-                    'embed_url': f'https://uzmedia.tv/embed/{film_id}',
-                    'thumbnail': None
-                }
-    return None
-
-def get_video_info(url):
-    """Turli platformalardan video ID va embed URL olish"""
-    if not url:
-        return None
-    
-    # Google Drive
-    gd_id = extract_google_drive_id(url)
-    if gd_id:
-        return {
-            'platform': 'googledrive',
-            'id': gd_id,
-            'embed_url': get_google_drive_embed_url(gd_id),
-            'thumbnail': None,
-            'direct_url': f'https://drive.google.com/uc?export=download&id={gd_id}'
-        }
-    
-    # Uzmedia.tv
-    uzmedia_info = extract_uzmedia_info(url)
-    if uzmedia_info:
-        return uzmedia_info
+def detect_platform(url):
+    """URL ni tahlil qilib platformani aniqlaydi"""
+    url_lower = url.lower()
     
     # YouTube
-    youtube_patterns = [
-        r'(?:youtu\.be\/)([a-zA-Z0-9_-]{11})',
-        r'(?:youtube\.com\/watch\?v=)([a-zA-Z0-9_-]{11})',
-        r'(?:youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})',
-        r'(?:youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})',
-        r'(?:youtube\.com\/live\/)([a-zA-Z0-9_-]{11})'
-    ]
-    for pattern in youtube_patterns:
-        match = re.search(pattern, url)
-        if match:
-            video_id = match.group(1)
-            return {
-                'platform': 'youtube',
-                'id': video_id,
-                'embed_url': f'https://www.youtube.com/embed/{video_id}?autoplay=1&rel=0&modestbranding=1&showinfo=0&controls=1&fs=1&playsinline=1',
-                'thumbnail': f'https://img.youtube.com/vi/{video_id}/maxresdefault.jpg'
-            }
+    if 'youtube.com' in url_lower or 'youtu.be' in url_lower:
+        return 'youtube'
     
-    # VK Video
-    vk_patterns = [
-        r'(?:vk\.com\/video-?\d+_\d+)',
-        r'(?:vk\.com\/video_ext\.php\?oid=-?\d+&id=\d+)',
-        r'(?:vk\.com\/clip-?\d+_\d+)'
-    ]
-    for pattern in vk_patterns:
-        match = re.search(pattern, url)
-        if match:
-            if 'video_ext' in url:
-                oid_match = re.search(r'oid=(-?\d+)', url)
-                id_match = re.search(r'id=(\d+)', url)
-                if oid_match and id_match:
-                    return {
-                        'platform': 'vk',
-                        'embed_url': f'https://vk.com/video_ext.php?oid={oid_match.group(1)}&id={id_match.group(1)}&autoplay=1',
-                        'thumbnail': None
-                    }
-            else:
-                parts = url.split('/')[-1].split('_')
-                if len(parts) >= 2:
-                    return {
-                        'platform': 'vk',
-                        'embed_url': f'https://vk.com/video_ext.php?oid={parts[0]}&id={parts[1]}&autoplay=1',
-                        'thumbnail': None
-                    }
+    # Google Drive
+    if 'drive.google.com' in url_lower:
+        return 'googledrive'
+    
+    # Uzmedia.tv
+    if 'uzmedia.tv' in url_lower:
+        return 'uzmedia'
+    
+    # VK
+    if 'vk.com' in url_lower:
+        return 'vk'
     
     # UzMovi
-    uzmovi_patterns = [
-        r'(?:uzmovi\.com\/)([a-zA-Z0-9_-]+)',
-        r'(?:uzmovi\.uz\/)([a-zA-Z0-9_-]+)',
-        r'(?:uzmovi\.com\/embed\/)([a-zA-Z0-9_-]+)'
-    ]
-    for pattern in uzmovi_patterns:
-        match = re.search(pattern, url)
-        if match:
-            video_id = match.group(1)
-            return {
-                'platform': 'uzmovi',
-                'id': video_id,
-                'embed_url': f'https://uzmovi.com/embed/{video_id}',
-                'thumbnail': None
-            }
+    if 'uzmovi.com' in url_lower or 'uzmovi.uz' in url_lower:
+        return 'uzmovi'
     
     # Instagram
-    instagram_patterns = [
-        r'(?:instagram\.com\/p\/([a-zA-Z0-9_-]+))',
-        r'(?:instagr\.am\/p\/([a-zA-Z0-9_-]+))',
-        r'(?:instagram\.com\/reel\/([a-zA-Z0-9_-]+))',
-        r'(?:instagram\.com\/tv\/([a-zA-Z0-9_-]+))'
-    ]
-    for pattern in instagram_patterns:
-        match = re.search(pattern, url)
-        if match:
-            video_id = match.group(1)
-            return {
-                'platform': 'instagram',
-                'id': video_id,
-                'embed_url': f'https://www.instagram.com/p/{video_id}/embed',
-                'thumbnail': None
-            }
+    if 'instagram.com' in url_lower or 'instagr.am' in url_lower:
+        return 'instagram'
     
     # TikTok
-    tiktok_patterns = [
-        r'(?:tiktok\.com\/@[\w]+\/video\/(\d+))',
-        r'(?:tiktok\.com\/embed\/v2\/)(\d+)',
-        r'(?:tiktok\.com\/t\/([a-zA-Z0-9_-]+))'
-    ]
-    for pattern in tiktok_patterns:
-        match = re.search(pattern, url)
-        if match:
-            video_id = match.group(1) if match.group(1) else match.group(0)
-            return {
-                'platform': 'tiktok',
-                'id': video_id,
-                'embed_url': f'https://www.tiktok.com/embed/v2/{video_id}',
-                'thumbnail': None
-            }
+    if 'tiktok.com' in url_lower:
+        return 'tiktok'
     
     # Vimeo
-    vimeo_patterns = [
-        r'(?:vimeo\.com\/)(\d+)',
-        r'(?:player\.vimeo\.com\/video\/)(\d+)',
-        r'(?:vimeo\.com\/channels\/[\w]+\/)(\d+)'
-    ]
-    for pattern in vimeo_patterns:
-        match = re.search(pattern, url)
-        if match:
-            video_id = match.group(1) if match.group(1) else match.group(0)
-            return {
-                'platform': 'vimeo',
-                'id': video_id,
-                'embed_url': f'https://player.vimeo.com/video/{video_id}?autoplay=1&playsinline=1',
-                'thumbnail': None
-            }
+    if 'vimeo.com' in url_lower:
+        return 'vimeo'
     
     # DailyMotion
-    dailymotion_patterns = [
-        r'(?:dailymotion\.com\/video\/)([a-zA-Z0-9]+)',
-        r'(?:dai\.ly\/)([a-zA-Z0-9]+)',
-        r'(?:dailymotion\.com\/embed\/video\/)([a-zA-Z0-9]+)'
-    ]
-    for pattern in dailymotion_patterns:
-        match = re.search(pattern, url)
-        if match:
-            video_id = match.group(1)
-            return {
-                'platform': 'dailymotion',
-                'id': video_id,
-                'embed_url': f'https://www.dailymotion.com/embed/video/{video_id}?autoplay=1',
-                'thumbnail': None
-            }
+    if 'dailymotion.com' in url_lower or 'dai.ly' in url_lower:
+        return 'dailymotion'
     
-    # Direct MP4
-    if url.endswith('.mp4') or url.endswith('.webm') or url.endswith('.ogg') or 'video' in url:
-        return {
-            'platform': 'direct',
-            'embed_url': url,
-            'thumbnail': None,
-            'direct_url': url
-        }
+    # MP4/WebM/OGG direct
+    if url_lower.endswith(('.mp4', '.webm', '.ogg', '.mov', '.mkv', '.m4v')):
+        return 'direct'
+    
+    # Default - iframe
+    return 'iframe'
+
+def extract_video_id(url, platform):
+    """Platformaga qarab video ID olish"""
+    if platform == 'youtube':
+        patterns = [
+            r'(?:youtu\.be\/)([a-zA-Z0-9_-]{11})',
+            r'(?:youtube\.com\/watch\?v=)([a-zA-Z0-9_-]{11})',
+            r'(?:youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})',
+            r'(?:youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})'
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, url)
+            if match:
+                return match.group(1)
+    
+    elif platform == 'googledrive':
+        patterns = [
+            r'(?:drive\.google\.com\/file\/d\/)([a-zA-Z0-9_-]+)',
+            r'(?:drive\.google\.com\/open\?id=)([a-zA-Z0-9_-]+)',
+            r'(?:drive\.google\.com\/uc\?id=)([a-zA-Z0-9_-]+)'
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, url)
+            if match:
+                return match.group(1)
+    
+    elif platform == 'uzmedia':
+        # Uzmedia film ID
+        match = re.search(r'/(\d+)', url)
+        if match:
+            return match.group(1)
+        # Agar embed parameter bo'lsa
+        match = re.search(r'file=(.+?)(?:&|$)', url)
+        if match:
+            return urllib.parse.unquote(match.group(1))
+    
+    elif platform == 'vimeo':
+        match = re.search(r'vimeo\.com\/(?:video\/)?(\d+)', url)
+        if match:
+            return match.group(1)
+    
+    elif platform == 'dailymotion':
+        match = re.search(r'dailymotion\.com\/video\/([a-zA-Z0-9]+)', url)
+        if match:
+            return match.group(1)
     
     return None
 
-def get_short_info(url):
-    """Shortslar uchun platforma aniqlash"""
+def get_embed_url(url, platform, video_id=None):
+    """Platformaga mos embed URL yaratish"""
+    
+    if platform == 'youtube':
+        vid = video_id or extract_video_id(url, 'youtube')
+        if vid:
+            return f'https://www.youtube.com/embed/{vid}?autoplay=1&rel=0&modestbranding=1&showinfo=0&controls=1&fs=1&playsinline=1'
+    
+    elif platform == 'googledrive':
+        vid = video_id or extract_video_id(url, 'googledrive')
+        if vid:
+            return f'https://drive.google.com/file/d/{vid}/preview'
+    
+    elif platform == 'uzmedia':
+        # Uzmedia uchun bir necha usul
+        if 'embed.html' in url:
+            return url
+        elif 'files.uzmedia.tv' in url:
+            return f'https://uzmedia.tv/embed.html?file={urllib.parse.quote(url)}'
+        else:
+            vid = video_id or extract_video_id(url, 'uzmedia')
+            if vid and vid.isdigit():
+                return f'https://uzmedia.tv/embed/{vid}'
+            else:
+                # To'g'ridan-to'g'ri MP4 fayl
+                if url.endswith('.mp4'):
+                    return f'https://uzmedia.tv/embed.html?file={urllib.parse.quote(url)}'
+                return url
+    
+    elif platform == 'vk':
+        # VK video embed
+        if 'video_ext.php' in url:
+            return url
+        else:
+            match = re.search(r'video(-?\d+_\d+)', url)
+            if match:
+                parts = match.group(1).split('_')
+                if len(parts) == 2:
+                    return f'https://vk.com/video_ext.php?oid={parts[0]}&id={parts[1]}&autoplay=1'
+    
+    elif platform == 'uzmovi':
+        vid = video_id or extract_video_id(url, 'uzmovi')
+        if vid:
+            return f'https://uzmovi.com/embed/{vid}'
+    
+    elif platform == 'instagram':
+        vid = video_id or extract_video_id(url, 'instagram')
+        if vid:
+            return f'https://www.instagram.com/p/{vid}/embed'
+    
+    elif platform == 'tiktok':
+        vid = video_id or extract_video_id(url, 'tiktok')
+        if vid:
+            return f'https://www.tiktok.com/embed/v2/{vid}'
+    
+    elif platform == 'vimeo':
+        vid = video_id or extract_video_id(url, 'vimeo')
+        if vid:
+            return f'https://player.vimeo.com/video/{vid}?autoplay=1&playsinline=1'
+    
+    elif platform == 'dailymotion':
+        vid = video_id or extract_video_id(url, 'dailymotion')
+        if vid:
+            return f'https://www.dailymotion.com/embed/video/{vid}?autoplay=1'
+    
+    elif platform == 'direct':
+        return url
+    
+    # Default - iframe
+    return url
+
+def get_thumbnail(url, platform, video_id=None):
+    """Platformaga mos thumbnail URL"""
+    if platform == 'youtube' and video_id:
+        return f'https://img.youtube.com/vi/{video_id}/maxresdefault.jpg'
+    return None
+
+def process_video_url(url):
+    """Video URL ni to'liq qayta ishlash"""
     if not url:
         return None
     
-    # YouTube Shorts
-    youtube_shorts_pattern = r'(?:youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})'
-    match = re.search(youtube_shorts_pattern, url)
-    if match:
-        video_id = match.group(1)
-        return {
-            'platform': 'youtube',
-            'id': video_id,
-            'embed_url': f'https://www.youtube.com/embed/{video_id}?autoplay=1&rel=0&modestbranding=1&showinfo=0&controls=0&fs=0&playsinline=1',
-            'thumbnail': f'https://img.youtube.com/vi/{video_id}/maxresdefault.jpg'
-        }
+    platform = detect_platform(url)
+    video_id = extract_video_id(url, platform)
+    embed_url = get_embed_url(url, platform, video_id)
+    thumbnail = get_thumbnail(url, platform, video_id)
     
-    # Instagram Reels
-    instagram_reel_pattern = r'(?:instagram\.com\/reel\/([a-zA-Z0-9_-]+))'
-    match = re.search(instagram_reel_pattern, url)
-    if match:
-        video_id = match.group(1)
-        return {
-            'platform': 'instagram',
-            'id': video_id,
-            'embed_url': f'https://www.instagram.com/p/{video_id}/embed',
-            'thumbnail': None
-        }
-    
-    # TikTok
-    tiktok_patterns = [
-        r'(?:tiktok\.com\/@[\w]+\/video\/(\d+))',
-        r'(?:tiktok\.com\/embed\/v2\/)(\d+)'
-    ]
-    for pattern in tiktok_patterns:
-        match = re.search(pattern, url)
-        if match:
-            video_id = match.group(1)
-            return {
-                'platform': 'tiktok',
-                'id': video_id,
-                'embed_url': f'https://www.tiktok.com/embed/v2/{video_id}',
-                'thumbnail': None
-            }
-    
-    # Google Drive Shorts
-    gd_id = extract_google_drive_id(url)
-    if gd_id:
-        return {
-            'platform': 'googledrive',
-            'id': gd_id,
-            'embed_url': get_google_drive_embed_url(gd_id),
-            'thumbnail': None
-        }
-    
-    return get_video_info(url)
+    return {
+        'platform': platform,
+        'video_id': video_id,
+        'embed_url': embed_url,
+        'thumbnail': thumbnail,
+        'original_url': url
+    }
 
 # ============ DATABASE ============
 def get_db():
@@ -330,15 +247,12 @@ def init_db():
             featured_sana TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )''')
         
-        # Mavjud jadvallarga yangi ustun qo'shish
-        try:
-            conn.execute("ALTER TABLE films ADD COLUMN direct_url TEXT")
-        except sqlite3.OperationalError:
-            pass
-        try:
-            conn.execute("ALTER TABLE shorts ADD COLUMN direct_url TEXT")
-        except sqlite3.OperationalError:
-            pass
+        # Yangi ustunlar
+        for table in ['films', 'shorts']:
+            try:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN direct_url TEXT")
+            except sqlite3.OperationalError:
+                pass
         
         conn.commit()
     print("✅ Database ready")
@@ -352,14 +266,12 @@ def allowed_file(filename, allowed):
 @app.route('/')
 def index():
     with get_db() as conn:
-        rows = conn.execute("SELECT * FROM shorts ORDER BY sana DESC LIMIT 20").fetchall()
-        shorts = [dict(row) for row in rows]
-        featured = conn.execute("""
+        shorts = [dict(row) for row in conn.execute("SELECT * FROM shorts ORDER BY sana DESC LIMIT 20").fetchall()]
+        featured_films = [dict(row) for row in conn.execute("""
             SELECT f.* FROM films f 
             JOIN featured_films ff ON f.id = ff.film_id 
             ORDER BY ff.featured_sana DESC LIMIT 10
-        """).fetchall()
-        featured_films = [dict(row) for row in featured]
+        """).fetchall()]
     return render_template('index.html', shorts=shorts, featured_films=featured_films)
 
 @app.route('/film/<kod>')
@@ -368,37 +280,30 @@ def film(kod):
         row = conn.execute("SELECT * FROM films WHERE kod = ?", (kod.upper(),)).fetchone()
     
     if not row:
-        return "Film topilmadi!", 404
+        return "<h1>Film topilmadi!</h1><a href='/'>Bosh sahifa</a>", 404
     
     film_data = dict(row)
     
-    # Embed URL ni to'g'ri formatlash
-    if film_data['platform'] == 'youtube':
-        pass  # YouTube embed allaqachon to'g'ri
-    elif film_data['platform'] == 'uzmedia':
-        if not film_data['embed_url'].startswith('http'):
-            film_data['embed_url'] = f"https://uzmedia.tv/embed/{film_data['video_id']}"
-    elif film_data['platform'] == 'googledrive':
-        if film_data.get('video_id'):
-            film_data['embed_url'] = get_google_drive_embed_url(film_data['video_id'])
-    elif film_data['platform'] == 'direct':
-        if film_data.get('direct_url'):
-            film_data['embed_url'] = film_data['direct_url']
+    # Agar embed_url bo'sh bo'lsa, qayta ishlash
+    if not film_data.get('embed_url') and film_data.get('direct_url'):
+        processed = process_video_url(film_data['direct_url'])
+        if processed:
+            film_data['embed_url'] = processed['embed_url']
+            film_data['platform'] = processed['platform']
+            film_data['video_id'] = processed['video_id']
     
     return render_template('film.html', film=film_data)
 
 @app.route('/shorts')
 def shorts():
     with get_db() as conn:
-        rows = conn.execute("SELECT * FROM shorts ORDER BY sana DESC").fetchall()
-        shorts_list = [dict(row) for row in rows]
+        shorts_list = [dict(row) for row in conn.execute("SELECT * FROM shorts ORDER BY sana DESC").fetchall()]
     return render_template('shorts.html', shorts=shorts_list)
 
 @app.route('/filmlar')
 def filmlar():
     with get_db() as conn:
-        rows = conn.execute("SELECT * FROM films ORDER BY id DESC").fetchall()
-        filmlar_list = [dict(row) for row in rows]
+        filmlar_list = [dict(row) for row in conn.execute("SELECT * FROM films ORDER BY id DESC").fetchall()]
     return render_template('filmlar.html', filmlar=filmlar_list)
 
 # ============ API ============
@@ -406,26 +311,19 @@ def filmlar():
 def check_film(kod):
     with get_db() as conn:
         row = conn.execute("SELECT id, nomi, platform FROM films WHERE kod = ?", (kod.upper(),)).fetchone()
-    
     if row:
-        return jsonify({"exists": True, "nomi": row['nomi'], "platform": row['platform']}), 200
+        return jsonify({"exists": True, "nomi": row['nomi'], "platform": row['platform']})
     return jsonify({"exists": False}), 404
 
-@app.route('/api/platforms')
-def get_platforms():
-    platforms = [
-        {'name': 'YouTube', 'icon': 'fab fa-youtube', 'color': '#FF0000'},
-        {'name': 'Google Drive', 'icon': 'fab fa-google-drive', 'color': '#4285F4'},
-        {'name': 'Uzmedia.tv', 'icon': 'fas fa-tv', 'color': '#667eea'},
-        {'name': 'VK Video', 'icon': 'fab fa-vk', 'color': '#4680C2'},
-        {'name': 'Instagram', 'icon': 'fab fa-instagram', 'color': '#E4405F'},
-        {'name': 'TikTok', 'icon': 'fab fa-tiktok', 'color': '#000000'},
-        {'name': 'Vimeo', 'icon': 'fab fa-vimeo', 'color': '#1AB7EA'},
-        {'name': 'DailyMotion', 'icon': 'fab fa-dailymotion', 'color': '#0066DC'},
-        {'name': 'UzMovi', 'icon': 'fas fa-film', 'color': '#00A884'},
-        {'name': 'Direct MP4', 'icon': 'fas fa-video', 'color': '#28a745'}
-    ]
-    return jsonify(platforms)
+@app.route('/api/detect', methods=['POST'])
+def detect_video():
+    data = request.get_json()
+    url = data.get('url', '')
+    if not url:
+        return jsonify({'error': 'URL kerak'}), 400
+    
+    result = process_video_url(url)
+    return jsonify(result)
 
 # ============ ADMIN PANEL ============
 @app.route('/admin', methods=['GET', 'POST'])
@@ -440,12 +338,10 @@ def admin():
                                total_films=total_films, total_shorts=total_shorts)
     
     if request.method == 'POST':
-        parol = request.form.get('parol')
-        if parol == ADMIN_PASSWORD:
+        if request.form.get('parol') == ADMIN_PASSWORD:
             session['admin_logged_in'] = True
             return redirect(url_for('admin'))
-        else:
-            return render_template('admin.html', login=False, xato="Parol noto'g'ri!")
+        return render_template('admin.html', login=False, xato="Parol noto'g'ri!")
     
     return render_template('admin.html', login=False)
 
@@ -469,10 +365,12 @@ def admin_add_film():
     if not video_url:
         return "Video URL manzili kerak!", 400
     
-    video_info = get_video_info(video_url)
-    if not video_info:
-        return "Noto'g'ri video URL! YouTube, Google Drive, Uzmedia.tv, VK, UzMovi, Instagram, TikTok, Vimeo, DailyMotion qo'llab-quvvatlanadi.", 400
+    # Video URL ni qayta ishlash
+    video_info = process_video_url(video_url)
+    if not video_info or not video_info['embed_url']:
+        return "Noto'g'ri video URL! Platforma qo'llab-quvvatlanmaydi.", 400
     
+    # Rasm yuklash
     rasm_nomi = None
     if 'rasm' in request.files:
         rasm = request.files['rasm']
@@ -487,9 +385,9 @@ def admin_add_film():
                 (kod, nomi, tafsilot, yil, janr, rasm, embed_url, video_id, platform, thumbnail, turi, direct_url) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (kod, nomi, tafsilot, yil, janr, rasm_nomi, 
-                 video_info['embed_url'], video_info.get('id'), 
+                 video_info['embed_url'], video_info.get('video_id'), 
                  video_info['platform'], video_info.get('thumbnail'), 
-                 'url', video_info.get('direct_url')))
+                 'url', video_url))
             film_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
             conn.execute("INSERT INTO featured_films (film_id) VALUES (?)", (film_id,))
             conn.commit()
@@ -510,17 +408,16 @@ def admin_add_shorts():
     if not video_url:
         return "Video URL manzili kerak!", 400
     
-    video_info = get_short_info(video_url)
-    if not video_info:
-        return "Noto'g'ri video URL! YouTube Shorts, Instagram Reel, TikTok, Google Drive qo'llab-quvvatlanadi.", 400
+    video_info = process_video_url(video_url)
+    if not video_info or not video_info['embed_url']:
+        return "Noto'g'ri video URL!", 400
     
     with get_db() as conn:
         conn.execute("""INSERT INTO shorts 
             (sarlavha, tafsilot, embed_url, video_id, platform, direct_url) 
             VALUES (?, ?, ?, ?, ?, ?)""",
             (sarlavha, tafsilot, video_info['embed_url'], 
-             video_info.get('id'), video_info['platform'], 
-             video_info.get('direct_url')))
+             video_info.get('video_id'), video_info['platform'], video_url))
         conn.commit()
     
     return redirect(url_for('admin'))
@@ -578,35 +475,23 @@ def serve_poster(filename):
 def not_found(error):
     return "<h1>404 - Sahifa topilmadi!</h1><a href='/'>Bosh sahifaga qaytish</a>", 404
 
-@app.errorhandler(500)
-def internal_error(error):
-    return "<h1>500 - Server xatosi!</h1><a href='/'>Bosh sahifaga qaytish</a>", 500
-
 # ============ MAIN ============
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
     print("""
     ╔══════════════════════════════════════════════════════════════════════════╗
-    ║                                                                          ║
-    ║     🎬 KINOTOP - UNIVERSAL VIDEO PLATFORMASI 🎬                          ║
-    ║                                                                          ║
+    ║                    🎬 KINOTOP - UNIVERSAL PLAYER 🎬                       ║
     ╠══════════════════════════════════════════════════════════════════════════╣
     ║                                                                          ║
     ║  🌐 PORT:        {}                                                       ║
     ║  🔐 ADMIN:       /admin                                                  ║
-    ║  📝 ADMIN PASS:  Betmilion1                                              ║
+    ║  📝 PASS:        Betmilion1                                              ║
     ║                                                                          ║
-    ║  ⚡ QO'LLAB-QUVVATLANADIGAN PLATFORMALAR:                                 ║
-    ║     ✓ YouTube / YouTube Shorts                                          ║
-    ║     ✓ Google Drive (Video & Folder)                                     ║
-    ║     ✓ Uzmedia.tv (Embed & Direct)                                       ║
-    ║     ✓ VK Video / VK Clips                                               ║
-    ║     ✓ UzMovi / UzMovi.uz                                                ║
-    ║     ✓ Instagram / Instagram Reels                                       ║
-    ║     ✓ TikTok                                                            ║
-    ║     ✓ Vimeo                                                             ║
-    ║     ✓ DailyMotion                                                       ║
-    ║     ✓ Direct MP4 / WebM / OGG                                           ║
+    ║  ✅ Qo'llab-quvvatlanadigan platformalar:                                 ║
+    ║     • YouTube      • Google Drive    • Uzmedia.tv                        ║
+    ║     • VK           • UzMovi          • Instagram                         ║
+    ║     • TikTok       • Vimeo           • DailyMotion                       ║
+    ║     • Direct MP4   • WebM            • OGG                               ║
     ║                                                                          ║
     ╚══════════════════════════════════════════════════════════════════════════╝
     """.format(port))
