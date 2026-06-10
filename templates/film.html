@@ -13,41 +13,34 @@
             box-sizing: border-box;
             -webkit-tap-highlight-color: transparent;
         }
-
         body {
             background: #000;
             font-family: 'Inter', sans-serif;
-            overflow: hidden;
             height: 100vh;
             width: 100%;
+            overflow: hidden;
             position: fixed;
         }
-
         .video-container {
             position: relative;
             width: 100%;
             height: 100vh;
             background: #000;
         }
-
         .video-wrapper {
             position: relative;
             width: 100%;
             height: 100%;
-            background: #000;
             display: flex;
             align-items: center;
             justify-content: center;
         }
-
-        /* VIDEO - TO'LIQ EKRAN KATTA QILIB */
-        .video-wrapper video {
+        .video-wrapper iframe, .video-wrapper video {
             width: 100%;
             height: 100%;
+            border: none;
             object-fit: contain;
         }
-
-        /* Orqaga qaytish tugmasi */
         .back-btn {
             position: fixed;
             top: 15px;
@@ -65,15 +58,7 @@
             font-size: 1.3rem;
             cursor: pointer;
             border: 1px solid rgba(255,255,255,0.2);
-            transition: all 0.2s ease;
         }
-
-        .back-btn:active {
-            transform: scale(0.92);
-            background: rgba(102,126,234,0.8);
-        }
-
-        /* Fullscreen tugmasi */
         .fullscreen-btn {
             position: fixed;
             bottom: 25px;
@@ -91,120 +76,7 @@
             font-size: 1.4rem;
             cursor: pointer;
             border: 1px solid rgba(255,255,255,0.2);
-            transition: all 0.2s ease;
         }
-
-        .fullscreen-btn:active {
-            transform: scale(0.92);
-            background: rgba(102,126,234,0.8);
-        }
-
-        /* ============ SENSOR BOSHQARUV (TELEFON UCHUN) ============ */
-        .gesture-area {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            top: 0;
-            z-index: 15;
-            background: transparent;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            pointer-events: none;
-        }
-
-        .gesture-top {
-            pointer-events: auto;
-            height: 30%;
-            width: 100%;
-        }
-
-        .gesture-bottom {
-            pointer-events: auto;
-            height: 20%;
-            width: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .gesture-left, .gesture-right {
-            pointer-events: auto;
-            width: 20%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .gesture-left {
-            position: absolute;
-            left: 0;
-            top: 0;
-            height: 100%;
-        }
-
-        .gesture-right {
-            position: absolute;
-            right: 0;
-            top: 0;
-            height: 100%;
-        }
-
-        .gesture-center {
-            pointer-events: auto;
-            width: 60%;
-            height: 100%;
-            margin: 0 auto;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        /* Sensor ko'rsatkichlari (animatsiya) */
-        .gesture-hint {
-            background: rgba(0,0,0,0.5);
-            backdrop-filter: blur(20px);
-            padding: 8px 16px;
-            border-radius: 30px;
-            color: white;
-            font-size: 0.7rem;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            opacity: 0;
-            transition: opacity 0.3s;
-            pointer-events: none;
-        }
-
-        .gesture-hint.show {
-            opacity: 1;
-        }
-
-        .gesture-hint i {
-            font-size: 0.8rem;
-        }
-
-        /* Progress bar (sensor uchun) */
-        .video-progress {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: rgba(255,255,255,0.2);
-            z-index: 50;
-        }
-
-        .video-progress-filled {
-            width: 0%;
-            height: 100%;
-            background: linear-gradient(90deg, #667eea, #764ba2);
-            transition: width 0.1s linear;
-        }
-
-        /* Yuklash */
         .loading {
             position: fixed;
             top: 0;
@@ -220,12 +92,7 @@
             gap: 20px;
             transition: opacity 0.3s;
         }
-
-        .loading.hide {
-            opacity: 0;
-            pointer-events: none;
-        }
-
+        .loading.hide { opacity: 0; pointer-events: none; }
         .spinner {
             width: 50px;
             height: 50px;
@@ -234,16 +101,8 @@
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
         }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .loading-text {
-            color: white;
-            font-size: 0.9rem;
-        }
-
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-text { color: white; font-size: 0.9rem; }
         .error-msg {
             position: fixed;
             bottom: 30px;
@@ -257,30 +116,8 @@
             z-index: 200;
             transform: translateY(100px);
             transition: transform 0.3s;
-            font-size: 0.85rem;
         }
-
-        .error-msg.show {
-            transform: translateY(0);
-        }
-
-        /* Safe area */
-        @supports (padding: max(0px)) {
-            .back-btn {
-                top: max(15px, env(safe-area-inset-top));
-                left: max(15px, env(safe-area-inset-left));
-            }
-            .fullscreen-btn {
-                bottom: max(25px, env(safe-area-inset-bottom));
-                right: max(20px, env(safe-area-inset-right));
-            }
-        }
-
-        @media (max-width: 480px) {
-            .back-btn, .fullscreen-btn {
-                -webkit-backdrop-filter: blur(10px);
-            }
-        }
+        .error-msg.show { transform: translateY(0); }
     </style>
 </head>
 <body>
@@ -291,49 +128,14 @@
 </div>
 
 <div class="video-container">
-    <div class="back-btn" id="backBtn">
-        <i class="fas fa-arrow-left"></i>
-    </div>
-    
-    <div class="fullscreen-btn" id="fullscreenBtn">
-        <i class="fas fa-expand"></i>
-    </div>
-
+    <div class="back-btn" id="backBtn"><i class="fas fa-arrow-left"></i></div>
+    <div class="fullscreen-btn" id="fullscreenBtn"><i class="fas fa-expand"></i></div>
     <div class="video-wrapper" id="videoWrapper">
-        <video id="videoPlayer" src="" controls autoplay playsinline webkit-playsinline style="width:100%;height:100%"></video>
-    </div>
-
-    <!-- SENSOR BOSHQARUV ZONALARI -->
-    <div class="gesture-area">
-        <div class="gesture-top" id="gestureTop"></div>
-        <div class="gesture-bottom">
-            <div class="gesture-left" id="gestureLeft">
-                <div class="gesture-hint" id="leftHint">
-                    <i class="fas fa-backward"></i> 10s
-                </div>
-            </div>
-            <div class="gesture-center" id="gestureCenter">
-                <div class="gesture-hint" id="centerHint">
-                    <i class="fas fa-play"></i>
-                </div>
-            </div>
-            <div class="gesture-right" id="gestureRight">
-                <div class="gesture-hint" id="rightHint">
-                    10s <i class="fas fa-forward"></i>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Progress bar -->
-    <div class="video-progress">
-        <div class="video-progress-filled" id="progressFilled"></div>
+        <iframe id="videoPlayer" allow="autoplay; fullscreen" allowfullscreen></iframe>
     </div>
 </div>
 
-<div class="error-msg" id="errorMsg">
-    <i class="fas fa-exclamation-triangle"></i> Video yuklashda xatolik
-</div>
+<div class="error-msg" id="errorMsg">⚠️ Video yuklashda xatolik</div>
 
 <script>
     (function() {
@@ -342,67 +144,8 @@
         const backBtn = document.getElementById('backBtn');
         const fullscreenBtn = document.getElementById('fullscreenBtn');
         const videoPlayer = document.getElementById('videoPlayer');
-        const progressFilled = document.getElementById('progressFilled');
         
-        // Sensor elementlari
-        const gestureLeft = document.getElementById('gestureLeft');
-        const gestureRight = document.getElementById('gestureRight');
-        const gestureCenter = document.getElementById('gestureCenter');
-        const gestureTop = document.getElementById('gestureTop');
-        const leftHint = document.getElementById('leftHint');
-        const rightHint = document.getElementById('rightHint');
-        const centerHint = document.getElementById('centerHint');
-        
-        let isPlaying = true;
-        let hideHintsTimer = null;
-        
-        // ============ VIDEO URL NI OLISH ============
-        // URL dan film kodini olish
-        const path = window.location.pathname;
-        const kod = path.split('/').pop();
-        
-        // Direct MP4 URL ni olish uchun API ga so'rov
-        fetch(`/api/direct/${kod}`)
-            .then(res => res.json())
-            .then(data => {
-                if (data.exists && data.direct_url) {
-                    // Video player ga MP4 URL ni o'rnatish
-                    videoPlayer.src = data.direct_url;
-                    videoPlayer.load();
-                    videoPlayer.play().catch(e => console.log('Autoplay blocked:', e));
-                    
-                    // Yuklashni yashirish
-                    setTimeout(() => {
-                        loading.classList.add('hide');
-                    }, 1000);
-                } else {
-                    showError('Video topilmadi!');
-                    setTimeout(() => {
-                        window.location.href = '/';
-                    }, 2000);
-                }
-            })
-            .catch(err => {
-                console.error('Error:', err);
-                showError('Video yuklashda xatolik!');
-                setTimeout(() => {
-                    window.location.href = '/';
-                }, 2000);
-            });
-        
-        function showHint(element, show = true) {
-            if (show) {
-                element.classList.add('show');
-                if (hideHintsTimer) clearTimeout(hideHintsTimer);
-                hideHintsTimer = setTimeout(() => {
-                    leftHint.classList.remove('show');
-                    rightHint.classList.remove('show');
-                    centerHint.classList.remove('show');
-                }, 800);
-            } else {
-                element.classList.remove('show');
-            }
-        }
+        const kod = window.location.pathname.split('/').pop();
         
         function showError(text) {
             errorMsg.innerHTML = '<i class="fas fa-exclamation-triangle"></i> ' + text;
@@ -410,176 +153,40 @@
             setTimeout(() => errorMsg.classList.remove('show'), 4000);
         }
         
-        // Orqaga qaytish
-        backBtn.addEventListener('click', () => {
-            window.location.href = '/';
-        });
+        // Tomosha qilish URL ini olish
+        fetch(`/api/watch/${kod}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.exists && data.watch_url) {
+                    videoPlayer.src = data.watch_url;
+                    setTimeout(() => loading.classList.add('hide'), 1000);
+                } else {
+                    showError('Video topilmadi!');
+                    setTimeout(() => window.location.href = '/', 2000);
+                }
+            })
+            .catch(() => {
+                showError('Video yuklashda xatolik!');
+                setTimeout(() => window.location.href = '/', 2000);
+            });
         
-        // ============ VIDEO BOSHQARUV FUNKSIYALARI ============
-        function togglePlayPause() {
-            if (videoPlayer.paused) {
-                videoPlayer.play();
-                isPlaying = true;
-                centerHint.innerHTML = '<i class="fas fa-pause"></i>';
-            } else {
-                videoPlayer.pause();
-                isPlaying = false;
-                centerHint.innerHTML = '<i class="fas fa-play"></i>';
-            }
-            showHint(centerHint, true);
-        }
+        backBtn.addEventListener('click', () => window.location.href = '/');
         
-        function seekBackward() {
-            videoPlayer.currentTime = Math.max(0, videoPlayer.currentTime - 10);
-            showHint(leftHint, true);
-            updateProgress();
-        }
-        
-        function seekForward() {
-            videoPlayer.currentTime = Math.min(videoPlayer.duration, videoPlayer.currentTime + 10);
-            showHint(rightHint, true);
-            updateProgress();
-        }
-        
-        function updateProgress() {
-            if (videoPlayer.duration) {
-                const percent = (videoPlayer.currentTime / videoPlayer.duration) * 100;
-                progressFilled.style.width = percent + '%';
-            }
-        }
-        
-        // Progressni yangilash
-        videoPlayer.addEventListener('timeupdate', updateProgress);
-        videoPlayer.addEventListener('loadedmetadata', () => {
-            progressFilled.style.width = '0%';
-        });
-        videoPlayer.addEventListener('play', () => {
-            isPlaying = true;
-            centerHint.innerHTML = '<i class="fas fa-pause"></i>';
-        });
-        videoPlayer.addEventListener('pause', () => {
-            isPlaying = false;
-            centerHint.innerHTML = '<i class="fas fa-play"></i>';
-        });
-        videoPlayer.addEventListener('error', () => {
-            showError('Video yuklanmadi!');
-        });
-        
-        // ============ SENSOR BOSHQARUV (TELEFON UCHUN) ============
-        let touchStartX = 0;
-        let touchStartY = 0;
-        let touchEndX = 0;
-        let touchEndY = 0;
-        
-        gestureLeft.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            touchStartX = e.touches[0].clientX;
-            touchStartY = e.touches[0].clientY;
-        });
-        
-        gestureLeft.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            touchEndX = e.changedTouches[0].clientX;
-            touchEndY = e.changedTouches[0].clientY;
-            const diffX = touchStartX - touchEndX;
-            const diffY = Math.abs(touchStartY - touchEndY);
-            
-            if (diffX > 30 && diffY < 50) {
-                seekBackward();
-            }
-        });
-        
-        gestureRight.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            touchStartX = e.touches[0].clientX;
-            touchStartY = e.touches[0].clientY;
-        });
-        
-        gestureRight.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            touchEndX = e.changedTouches[0].clientX;
-            touchEndY = e.changedTouches[0].clientY;
-            const diffX = touchEndX - touchStartX;
-            const diffY = Math.abs(touchStartY - touchEndY);
-            
-            if (diffX > 30 && diffY < 50) {
-                seekForward();
-            }
-        });
-        
-        gestureCenter.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            togglePlayPause();
-        });
-        
-        let topTouchStart = 0;
-        gestureTop.addEventListener('touchstart', (e) => {
-            topTouchStart = e.touches[0].clientY;
-        });
-        
-        gestureTop.addEventListener('touchend', (e) => {
-            const topTouchEnd = e.changedTouches[0].clientY;
-            if (topTouchStart - topTouchEnd > 50) {
-                toggleFullScreen();
-            }
-        });
-        
-        // ============ FULL SCREEN ============
         function toggleFullScreen() {
             const container = document.querySelector('.video-container');
-            if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-                if (container.requestFullscreen) {
-                    container.requestFullscreen();
-                } else if (container.webkitRequestFullscreen) {
-                    container.webkitRequestFullscreen();
-                }
+            if (!document.fullscreenElement) {
+                container.requestFullscreen();
                 fullscreenBtn.innerHTML = '<i class="fas fa-compress"></i>';
             } else {
-                if (document.exitFullscreen) {
-                    document.exitFullscreen();
-                } else if (document.webkitExitFullscreen) {
-                    document.webkitExitFullscreen();
-                }
+                document.exitFullscreen();
                 fullscreenBtn.innerHTML = '<i class="fas fa-expand"></i>';
             }
         }
         
         fullscreenBtn.addEventListener('click', toggleFullScreen);
-        
         document.addEventListener('fullscreenchange', () => {
-            if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+            if (!document.fullscreenElement) {
                 fullscreenBtn.innerHTML = '<i class="fas fa-expand"></i>';
-            }
-        });
-        
-        // Klaviatura
-        document.addEventListener('keydown', (e) => {
-            if (e.key === ' ' || e.key === 'Space') {
-                e.preventDefault();
-                togglePlayPause();
-            } else if (e.key === 'ArrowLeft') {
-                seekBackward();
-            } else if (e.key === 'ArrowRight') {
-                seekForward();
-            } else if (e.key === 'f' || e.key === 'F') {
-                toggleFullScreen();
-            }
-        });
-        
-        // Chap chetidan surish orqaga qaytish
-        let edgeTouchStart = 0;
-        document.addEventListener('touchstart', (e) => {
-            edgeTouchStart = e.touches[0].clientX;
-        });
-        document.addEventListener('touchend', (e) => {
-            const touchEnd = e.changedTouches[0].clientX;
-            if (edgeTouchStart < 30 && touchEnd > edgeTouchStart + 60) {
-                window.location.href = '/';
             }
         });
     })();
