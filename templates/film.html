@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Kinotop | Film tomosha qilish</title>
+    <title>{{ film.nomi }} | Kinotop</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
@@ -35,10 +35,14 @@
             align-items: center;
             justify-content: center;
         }
-        .video-wrapper iframe, .video-wrapper video {
+        .video-wrapper iframe {
             width: 100%;
             height: 100%;
             border: none;
+        }
+        .video-wrapper video {
+            width: 100%;
+            height: 100%;
             object-fit: contain;
         }
         .back-btn {
@@ -102,22 +106,20 @@
             animation: spin 0.8s linear infinite;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
-        .loading-text { color: white; font-size: 0.9rem; }
-        .error-msg {
+        .film-title {
             position: fixed;
-            bottom: 30px;
+            bottom: 20px;
             left: 20px;
-            right: 20px;
-            background: rgba(220,53,69,0.95);
-            padding: 14px;
-            border-radius: 12px;
             color: white;
-            text-align: center;
-            z-index: 200;
-            transform: translateY(100px);
-            transition: transform 0.3s;
+            font-size: 0.8rem;
+            background: rgba(0,0,0,0.5);
+            padding: 5px 12px;
+            border-radius: 20px;
+            z-index: 100;
         }
-        .error-msg.show { transform: translateY(0); }
+        @media (max-width: 768px) {
+            .back-btn, .fullscreen-btn { background: rgba(0,0,0,0.5); }
+        }
     </style>
 </head>
 <body>
@@ -131,44 +133,23 @@
     <div class="back-btn" id="backBtn"><i class="fas fa-arrow-left"></i></div>
     <div class="fullscreen-btn" id="fullscreenBtn"><i class="fas fa-expand"></i></div>
     <div class="video-wrapper" id="videoWrapper">
-        <iframe id="videoPlayer" allow="autoplay; fullscreen" allowfullscreen></iframe>
+        {% if film.platform == 'mp4' %}
+            <video id="videoPlayer" src="{{ film.video_url }}" controls autoplay playsinline webkit-playsinline></video>
+        {% else %}
+            <iframe id="videoPlayer" src="{{ film.video_url }}" allow="autoplay; fullscreen" allowfullscreen></iframe>
+        {% endif %}
     </div>
+    <div class="film-title">{{ film.nomi }}</div>
 </div>
-
-<div class="error-msg" id="errorMsg">⚠️ Video yuklashda xatolik</div>
 
 <script>
     (function() {
         const loading = document.getElementById('loading');
-        const errorMsg = document.getElementById('errorMsg');
         const backBtn = document.getElementById('backBtn');
         const fullscreenBtn = document.getElementById('fullscreenBtn');
         const videoPlayer = document.getElementById('videoPlayer');
         
-        const kod = window.location.pathname.split('/').pop();
-        
-        function showError(text) {
-            errorMsg.innerHTML = '<i class="fas fa-exclamation-triangle"></i> ' + text;
-            errorMsg.classList.add('show');
-            setTimeout(() => errorMsg.classList.remove('show'), 4000);
-        }
-        
-        // Tomosha qilish URL ini olish
-        fetch(`/api/watch/${kod}`)
-            .then(res => res.json())
-            .then(data => {
-                if (data.exists && data.watch_url) {
-                    videoPlayer.src = data.watch_url;
-                    setTimeout(() => loading.classList.add('hide'), 1000);
-                } else {
-                    showError('Video topilmadi!');
-                    setTimeout(() => window.location.href = '/', 2000);
-                }
-            })
-            .catch(() => {
-                showError('Video yuklashda xatolik!');
-                setTimeout(() => window.location.href = '/', 2000);
-            });
+        setTimeout(() => loading.classList.add('hide'), 1500);
         
         backBtn.addEventListener('click', () => window.location.href = '/');
         
@@ -189,6 +170,16 @@
                 fullscreenBtn.innerHTML = '<i class="fas fa-expand"></i>';
             }
         });
+        
+        // Iframe yuklanganda
+        if (videoPlayer && videoPlayer.tagName === 'IFRAME') {
+            videoPlayer.onload = () => setTimeout(() => loading.classList.add('hide'), 500);
+        }
+        
+        // Video yuklanganda
+        if (videoPlayer && videoPlayer.tagName === 'VIDEO') {
+            videoPlayer.oncanplay = () => setTimeout(() => loading.classList.add('hide'), 500);
+        }
     })();
 </script>
 </body>
