@@ -161,7 +161,9 @@
             setTimeout(() => errorMsg.classList.remove('show'), 4000);
         }
         
-        function hideLoading() { setTimeout(() => loading.classList.add('hide'), 500); }
+        function hideLoading() { 
+            setTimeout(() => loading.classList.add('hide'), 500); 
+        }
         
         function formatTime(seconds) {
             if (isNaN(seconds) || !seconds || seconds < 0) return '0:00';
@@ -262,15 +264,186 @@
                 hideLoading();
             });
             video.addEventListener('canplay', hideLoading);
-            video.addEventListener('error', () => { showError('Video yuklashda xatolik'); hideLoading(); });
+            video.addEventListener('error', (e) => { 
+                console.error('Video error:', e);
+                showError('Video yuklashda xatolik'); 
+                hideLoading(); 
+            });
             video.addEventListener('waiting', () => loading.classList.remove('hide'));
             video.addEventListener('playing', () => loading.classList.add('hide'));
         }
         
         function loadVideo() {
-            let videoUrl = film.embed_url || film.direct_url;
-            
-            // Proxy orqali uzmedia
-            if (film.platform === 'uzmedia_proxy' && film.proxy_url) {
-                videoUrl = film.proxy_url;
+            // Tozalash
+            while (wrapper.firstChild) {
+                wrapper.removeChild(wrapper.firstChild);
             }
+            wrapper.appendChild(controlsOverlay);
+            wrapper.appendChild(filmInfo);
+            
+            let videoUrl = null;
+            
+            // Uzmedia.tv uchun PROXY orqali
+            if (film.platform === 'uzmedia' && film.use_proxy && film.proxy_url) {
+                playerType = 'video';
+                videoUrl = film.proxy_url;
+                
+                const video = document.createElement('video');
+                video.id = 'videoPlayer';
+                video.src = videoUrl;
+                video.controls = false;
+                video.autoplay = true;
+                video.playsInline = true;
+                video.style.width = '100%';
+                video.style.height = '100%';
+                video.style.objectFit = 'contain';
+                wrapper.insertBefore(video, wrapper.firstChild);
+                currentVideo = video;
+                setupVideoEvents(video);
+                video.load();
+                
+            } 
+            // YouTube
+            else if (film.platform === 'youtube' && film.embed_url) {
+                playerType = 'iframe';
+                const iframe = document.createElement('iframe');
+                iframe.src = film.embed_url;
+                iframe.allow = 'autoplay; fullscreen; encrypted-media; picture-in-picture';
+                iframe.allowFullscreen = true;
+                iframe.style.width = '100%';
+                iframe.style.height = '100%';
+                wrapper.insertBefore(iframe, wrapper.firstChild);
+                hideLoading();
+                setTimeout(() => { iframe.onload = hideLoading; }, 1000);
+            }
+            // Google Drive
+            else if (film.platform === 'googledrive' && film.embed_url) {
+                playerType = 'iframe';
+                const iframe = document.createElement('iframe');
+                iframe.src = film.embed_url;
+                iframe.allow = 'autoplay; fullscreen';
+                iframe.allowFullscreen = true;
+                iframe.style.width = '100%';
+                iframe.style.height = '100%';
+                wrapper.insertBefore(iframe, wrapper.firstChild);
+                hideLoading();
+            }
+            // Direct video
+            else if (film.platform === 'direct' && (film.direct_url || film.embed_url)) {
+                playerType = 'video';
+                videoUrl = film.direct_url || film.embed_url;
+                
+                const video = document.createElement('video');
+                video.id = 'videoPlayer';
+                video.src = videoUrl;
+                video.controls = false;
+                video.autoplay = true;
+                video.playsInline = true;
+                video.style.width = '100%';
+                video.style.height = '100%';
+                video.style.objectFit = 'contain';
+                wrapper.insertBefore(video, wrapper.firstChild);
+                currentVideo = video;
+                setupVideoEvents(video);
+                video.load();
+            }
+            // Boshqa platformalar (iframe)
+            else if (film.embed_url) {
+                playerType = 'iframe';
+                const iframe = document.createElement('iframe');
+                iframe.src = film.embed_url;
+                iframe.allow = 'autoplay; fullscreen; encrypted-media';
+                iframe.allowFullscreen = true;
+                iframe.style.width = '100%';
+                iframe.style.height = '100%';
+                iframe.setAttribute('referrerpolicy', 'no-referrer');
+                iframe.setAttribute('rel', 'noreferrer');
+                wrapper.insertBefore(iframe, wrapper.firstChild);
+                hideLoading();
+            }
+            else {
+                hideLoading();
+                showError('Video URL topilmadi!');
+                return;
+            }
+            
+            // Back tugmasini avtomatik yashirish
+            setTimeout(() => backBtn.classList.add('hide'), 2000);
+            
+            // Progress interval
+            if (progressInterval) clearInterval(progressInterval);
+            progressInterval = setInterval(updateProgress, 1000);
+        }
+        
+        // Event listenerlar
+        function setupEventListeners() {
+            wrapper.addEventListener('mousemove', () => {
+                showControls();
+                showBackButton();
+            });
+            wrapper.addEventListener('click', () => {
+                showControls();
+                showBackButton();
+            });
+            wrapper.addEventListener('touchstart', () => {
+                showControls();
+                showBackButton();
+            });
+            wrapper.addEventListener('dblclick', (e) => {
+                e.preventDefault();
+                toggleFullscreen();
+            });
+            
+            backBtn.addEventListener('click', () => {
+                if (progressInterval) clearInterval(progressInterval);
+                window.location.href = '/';
+            });
+            
+            playPauseBtn.addEventListener('click', togglePlayPause);
+            fullscreenBtn.addEventListener('click', toggleFullscreen);
+            rewindBtn.addEventListener('click', () => seek(-10));
+            forwardBtn.addEventListener('click', () => seek(10));
+            progressBar.addEventListener('click', (e) => {
+                const rect = progressBar.getBoundingClientRect();
+                const pos = (e.clientX - rect.left) / rect.width;
+                seekToPercent(pos);
+            });
+            
+            // Klaviatura boshqaruvi
+            document.addEventListener('keydown', (e) => {
+                if (e.key === ' ' || e.key === 'Space' || e.key === 'k' || e.key === 'K') {
+                    e.preventDefault();
+                    togglePlayPause();
+                } else if (e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    seek(-10);
+                } else if (e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    seek(10);
+                } else if (e.key === 'f' || e.key === 'F') {
+                    e.preventDefault();
+                    toggleFullscreen();
+                } else if (e.key === 'Escape') {
+                    if (document.fullscreenElement) {
+                        document.exitFullscreen();
+                    }
+                }
+                showControls();
+                showBackButton();
+            });
+            
+            // Fullscreen o'zgarishi
+            document.addEventListener('fullscreenchange', () => {
+                if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+                    fullscreenBtn.innerHTML = '<i class="fas fa-expand"></i>';
+                }
+            });
+        }
+        
+        // Boshlash
+        setupEventListeners();
+        loadVideo();
+    })();
+</script>
+</body>
+</html>
