@@ -1,414 +1,287 @@
 import os
+import json
 import sqlite3
-import re
-from flask import Flask, render_template, request, redirect, url_for, send_file, send_from_directory, jsonify, session, Response
+import random
 from datetime import datetime
+from flask import Flask, render_template, request, redirect, url_for, session, send_from_directory
+from werkzeug.utils import secure_filename
 from functools import wraps
 
 app = Flask(__name__)
-app.secret_key = 'kinotop-secret-key-2024'
+app.secret_key = 'kinotop_secret_key_2026'
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-UPLOAD_FOLDER_POSTERS = os.path.join(BASE_DIR, 'static/uploads/posters')
+# Konfiguratsiyalar
+UPLOAD_FOLDER = 'static/uploads'
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB rasm uchun
 
-os.makedirs(UPLOAD_FOLDER_POSTERS, exist_ok=True)
-
-# ============ ADMIN PAROLI O'ZGARTIRILDI ============
-ADMIN_PASSWORD = 'Betmilion1'
-# ===================================================
-
-ALLOWED_IMAGE = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
-
-# ============ VIDEO PLATFORMALARINI ANIQLASH ============
-def get_video_info(url):
-    """Turli platformalardan video ID va embed URL olish"""
-    if not url:
-        return None
-    
-    # YouTube
-    youtube_patterns = [
-        r'(?:youtu\.be\/)([a-zA-Z0-9_-]+)',
-        r'(?:youtube\.com\/watch\?v=)([a-zA-Z0-9_-]+)',
-        r'(?:youtube\.com\/embed\/)([a-zA-Z0-9_-]+)',
-        r'(?:youtube\.com\/shorts\/)([a-zA-Z0-9_-]+)'
-    ]
-    for pattern in youtube_patterns:
-        match = re.search(pattern, url)
-        if match:
-            video_id = match.group(1)
-            return {
-                'platform': 'youtube',
-                'id': video_id,
-                'embed_url': f'https://www.youtube.com/embed/{video_id}?autoplay=1&rel=0&modestbranding=1&showinfo=0&controls=1&fs=1',
-                'thumbnail': f'https://img.youtube.com/vi/{video_id}/maxresdefault.jpg'
-            }
-    
-    # VK Video
-    vk_patterns = [
-        r'(?:vk\.com\/video-?\d+_\d+)',
-        r'(?:vk\.com\/video_ext\.php\?oid=-?\d+&id=\d+)'
-    ]
-    for pattern in vk_patterns:
-        match = re.search(pattern, url)
-        if match:
-            video_id = url.split('/')[-1] if 'video' in url else None
-            if video_id:
-                parts = video_id.split('_')
-                if len(parts) == 2:
-                    oid, vid = parts
-                    return {
-                        'platform': 'vk',
-                        'id': video_id,
-                        'embed_url': f'https://vk.com/video_ext.php?oid={oid}&id={vid}&autoplay=1',
-                        'thumbnail': None
-                    }
-    
-    # UzMovi
-    uzmovi_patterns = [
-        r'(?:uzmovi\.com\/)([a-zA-Z0-9_-]+)',
-        r'(?:uzmovi\.uz\/)([a-zA-Z0-9_-]+)'
-    ]
-    for pattern in uzmovi_patterns:
-        match = re.search(pattern, url)
-        if match:
-            video_id = match.group(1)
-            return {
-                'platform': 'uzmovi',
-                'id': video_id,
-                'embed_url': f'https://uzmovi.com/embed/{video_id}',
-                'thumbnail': None
-            }
-    
-    # Instagram
-    instagram_patterns = [
-        r'(?:instagram\.com\/p\/([a-zA-Z0-9_-]+))',
-        r'(?:instagr\.am\/p\/([a-zA-Z0-9_-]+))',
-        r'(?:instagram\.com\/reel\/([a-zA-Z0-9_-]+))'
-    ]
-    for pattern in instagram_patterns:
-        match = re.search(pattern, url)
-        if match:
-            video_id = match.group(1)
-            return {
-                'platform': 'instagram',
-                'id': video_id,
-                'embed_url': f'https://www.instagram.com/p/{video_id}/embed',
-                'thumbnail': None
-            }
-    
-    # Vimeo
-    vimeo_patterns = [
-        r'(?:vimeo\.com\/)(\d+)',
-        r'(?:player\.vimeo\.com\/video\/)(\d+)'
-    ]
-    for pattern in vimeo_patterns:
-        match = re.search(pattern, url)
-        if match:
-            video_id = match.group(1)
-            return {
-                'platform': 'vimeo',
-                'id': video_id,
-                'embed_url': f'https://player.vimeo.com/video/{video_id}?autoplay=1',
-                'thumbnail': None
-            }
-    
-    # DailyMotion
-    dailymotion_patterns = [
-        r'(?:dailymotion\.com\/video\/)([a-zA-Z0-9]+)',
-        r'(?:dai\.ly\/)([a-zA-Z0-9]+)'
-    ]
-    for pattern in dailymotion_patterns:
-        match = re.search(pattern, url)
-        if match:
-            video_id = match.group(1)
-            return {
-                'platform': 'dailymotion',
-                'id': video_id,
-                'embed_url': f'https://www.dailymotion.com/embed/video/{video_id}?autoplay=1',
-                'thumbnail': None
-            }
-    
-    return None
-
-def get_short_info(url):
-    """Shortslar uchun platforma aniqlash"""
-    if not url:
-        return None
-    
-    # YouTube Shorts
-    youtube_shorts_pattern = r'(?:youtube\.com\/shorts\/)([a-zA-Z0-9_-]+)'
-    match = re.search(youtube_shorts_pattern, url)
-    if match:
-        video_id = match.group(1)
-        return {
-            'platform': 'youtube',
-            'id': video_id,
-            'embed_url': f'https://www.youtube.com/embed/{video_id}?autoplay=1&rel=0&modestbranding=1&showinfo=0&controls=0&fs=0',
-            'thumbnail': f'https://img.youtube.com/vi/{video_id}/maxresdefault.jpg'
-        }
-    
-    # Instagram Reels
-    instagram_reel_pattern = r'(?:instagram\.com\/reel\/([a-zA-Z0-9_-]+))'
-    match = re.search(instagram_reel_pattern, url)
-    if match:
-        video_id = match.group(1)
-        return {
-            'platform': 'instagram',
-            'id': video_id,
-            'embed_url': f'https://www.instagram.com/p/{video_id}/embed',
-            'thumbnail': None
-        }
-    
-    # TikTok
-    tiktok_patterns = [
-        r'(?:tiktok\.com\/@[\w]+\/video\/(\d+))',
-        r'(?:tiktok\.com\/embed\/v2\/)(\d+)'
-    ]
-    for pattern in tiktok_patterns:
-        match = re.search(pattern, url)
-        if match:
-            video_id = match.group(1)
-            return {
-                'platform': 'tiktok',
-                'id': video_id,
-                'embed_url': f'https://www.tiktok.com/embed/v2/{video_id}',
-                'thumbnail': None
-            }
-    
-    return get_video_info(url)
+# Papka mavjudligini tekshirish
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # ============ DATABASE ============
 def get_db():
-    db_path = os.path.join(BASE_DIR, 'database.db')
-    conn = sqlite3.connect(db_path, check_same_thread=False)
+    conn = sqlite3.connect('kinotop.db')
     conn.row_factory = sqlite3.Row
     return conn
 
 def init_db():
-    with get_db() as conn:
-        conn.execute('''CREATE TABLE IF NOT EXISTS films (
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    # Filmlar jadvali
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS filmlar (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             kod TEXT UNIQUE NOT NULL,
             nomi TEXT NOT NULL,
+            video_url TEXT,
             tafsilot TEXT,
             yil TEXT,
             janr TEXT,
             rasm TEXT,
-            embed_url TEXT NOT NULL,
-            video_id TEXT,
-            platform TEXT,
-            thumbnail TEXT,
-            turi TEXT DEFAULT 'url'
-        )''')
-        
-        conn.execute('''CREATE TABLE IF NOT EXISTS shorts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            sarlavha TEXT NOT NULL,
-            tafsilot TEXT,
-            embed_url TEXT NOT NULL,
-            video_id TEXT,
             platform TEXT,
             sana TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )''')
-        
-        conn.execute('''CREATE TABLE IF NOT EXISTS featured_films (
+        )
+    ''')
+    
+    # Shortslar jadvali
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS shorts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            film_id INTEGER,
-            featured_sana TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )''')
-        
-        conn.commit()
-    print("✅ Database ready")
+            sarlavha TEXT NOT NULL,
+            video_url TEXT,
+            tafsilot TEXT,
+            platform TEXT,
+            sana TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    # Admin sozlamalari (parol)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS sozlamalar (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        )
+    ''')
+    
+    # Default admin parol: admin123
+    cursor.execute('''
+        INSERT OR IGNORE INTO sozlamalar (key, value) VALUES ('admin_parol', 'admin123')
+    ''')
+    
+    conn.commit()
+    conn.close()
 
 init_db()
 
-def allowed_file(filename, allowed):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed
+# ============ YORDAMCHI FUNKSIYALAR ============
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# ============ PUBLIC ROUTES ============
+def platformani_aniqla(url):
+    """URL bo'yicha platformani aniqlash"""
+    if not url:
+        return 'uzmovi'
+    url_lower = url.lower()
+    if 'youtube.com' in url_lower or 'youtu.be' in url_lower:
+        return 'youtube'
+    elif 'vk.com' in url_lower or 'vkvideo' in url_lower:
+        return 'vk'
+    elif 'instagram.com' in url_lower:
+        return 'instagram'
+    elif 'tiktok.com' in url_lower:
+        return 'tiktok'
+    elif 'drive.google.com' in url_lower:
+        return 'google'
+    elif 'uzmedia' in url_lower:
+        return 'uzmovi'
+    else:
+        return 'uzmovi'
+
+def random_kod():
+    """4 xonali tasodifiy kod yaratish"""
+    kod = str(random.randint(1000, 9999))
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('SELECT id FROM filmlar WHERE kod = ?', (kod,))
+    if cursor.fetchone():
+        conn.close()
+        return random_kod()
+    conn.close()
+    return kod
+
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('admin_logged_in'):
+            return redirect('/admin')
+        return f(*args, **kwargs)
+    return decorated_function
+
+# ============ ROUTES ============
 @app.route('/')
 def index():
-    with get_db() as conn:
-        rows = conn.execute("SELECT * FROM shorts ORDER BY sana DESC").fetchall()
-        shorts = [dict(row) for row in rows]
-    return render_template('index.html', shorts=shorts)
+    """Bosh sahifa"""
+    conn = get_db()
+    filmlar = conn.execute('SELECT * FROM filmlar ORDER BY id DESC').fetchall()
+    shorts = conn.execute('SELECT * FROM shorts ORDER BY id DESC').fetchall()
+    conn.close()
+    return render_template('index.html', filmlar=filmlar, shorts=shorts)
 
 @app.route('/film/<kod>')
 def film(kod):
-    with get_db() as conn:
-        row = conn.execute("SELECT * FROM films WHERE kod = ?", (kod.upper(),)).fetchone()
-    
-    if not row:
-        return "Film topilmadi!", 404
-    
-    return render_template('film.html', film=dict(row))
+    """Film sahifasi"""
+    conn = get_db()
+    film = conn.execute('SELECT * FROM filmlar WHERE kod = ?', (kod,)).fetchone()
+    conn.close()
+    if not film:
+        return "Film topilmadi", 404
+    return render_template('film.html', film=film)
 
-# ============ API ============
-@app.route('/api/check/<kod>')
-def check_film(kod):
-    with get_db() as conn:
-        row = conn.execute("SELECT id, nomi, platform FROM films WHERE kod = ?", (kod.upper(),)).fetchone()
-    
-    if row:
-        return jsonify({"exists": True, "nomi": row['nomi'], "platform": row['platform']}), 200
-    return jsonify({"exists": False}), 404
+@app.route('/shorts/<int:id>')
+def shorts_detail(id):
+    """Shorts sahifasi"""
+    conn = get_db()
+    short = conn.execute('SELECT * FROM shorts WHERE id = ?', (id,)).fetchone()
+    conn.close()
+    if not short:
+        return "Short topilmadi", 404
+    return render_template('shorts.html', short=short)
 
 # ============ ADMIN PANEL ============
 @app.route('/admin', methods=['GET', 'POST'])
-def admin():
-    if session.get('admin_logged_in'):
-        with get_db() as conn:
-            filmlar = [dict(row) for row in conn.execute("SELECT * FROM films ORDER BY id DESC").fetchall()]
-            shorts_list = [dict(row) for row in conn.execute("SELECT * FROM shorts ORDER BY sana DESC").fetchall()]
-            total_films = conn.execute("SELECT COUNT(*) as c FROM films").fetchone()['c']
-            total_shorts = conn.execute("SELECT COUNT(*) as c FROM shorts").fetchone()['c']
-        return render_template('admin.html', login=True, filmlar=filmlar, shorts_list=shorts_list,
-                               total_films=total_films, total_shorts=total_shorts)
-    
+def admin_login():
     if request.method == 'POST':
         parol = request.form.get('parol')
-        if parol == ADMIN_PASSWORD:
+        conn = get_db()
+        correct = conn.execute('SELECT value FROM sozlamalar WHERE key = "admin_parol"').fetchone()
+        conn.close()
+        if correct and parol == correct['value']:
             session['admin_logged_in'] = True
-            return redirect(url_for('admin'))
-        else:
-            return render_template('admin.html', login=False, xato="Parol noto'g'ri!")
+            return redirect('/admin/dashboard')
+        return render_template('admin.html', login=False, xato='Parol xato!')
     
+    if session.get('admin_logged_in'):
+        return redirect('/admin/dashboard')
     return render_template('admin.html', login=False)
+
+@app.route('/admin/dashboard')
+@admin_required
+def admin_dashboard():
+    conn = get_db()
+    filmlar = conn.execute('SELECT * FROM filmlar ORDER BY id DESC').fetchall()
+    shorts_list = conn.execute('SELECT * FROM shorts ORDER BY id DESC').fetchall()
+    conn.close()
+    return render_template('admin.html', 
+                         login=True, 
+                         filmlar=filmlar, 
+                         shorts_list=shorts_list,
+                         total_films=len(filmlar),
+                         total_shorts=len(shorts_list))
+
+@app.route('/admin/film', methods=['POST'])
+@admin_required
+def add_film():
+    kod = request.form.get('kod')
+    nomi = request.form.get('nomi')
+    video_url = request.form.get('video_url')
+    tafsilot = request.form.get('tafsilot')
+    yil = request.form.get('yil')
+    janr = request.form.get('janr')
+    
+    # Kod kiritilmagan bo'lsa, random generatsiya qilish
+    if not kod or kod == '':
+        kod = random_kod()
+    
+    # Platformani aniqlash
+    platform = platformani_aniqla(video_url)
+    
+    # Rasm yuklash
+    rasm_nomi = None
+    if 'rasm' in request.files:
+        fayl = request.files['rasm']
+        if fayl and fayl.filename and allowed_file(fayl.filename):
+            ext = fayl.filename.rsplit('.', 1)[1].lower()
+            rasm_nomi = f"poster_{kod}_{datetime.now().strftime('%Y%m%d%H%M%S')}.{ext}"
+            fayl.save(os.path.join(app.config['UPLOAD_FOLDER'], rasm_nomi))
+    
+    conn = get_db()
+    try:
+        conn.execute('''
+            INSERT INTO filmlar (kod, nomi, video_url, tafsilot, yil, janr, rasm, platform)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (kod, nomi, video_url, tafsilot, yil, janr, rasm_nomi, platform))
+        conn.commit()
+    except sqlite3.IntegrityError:
+        conn.close()
+        return "Bu kod allaqachon mavjud!", 400
+    conn.close()
+    
+    return redirect('/admin/dashboard')
+
+@app.route('/admin/film/delete/<int:film_id>', methods=['POST'])
+@admin_required
+def delete_film(film_id):
+    conn = get_db()
+    
+    # Rasmni o'chirish
+    film = conn.execute('SELECT rasm FROM filmlar WHERE id = ?', (film_id,)).fetchone()
+    if film and film['rasm']:
+        rasm_yoli = os.path.join(app.config['UPLOAD_FOLDER'], film['rasm'])
+        if os.path.exists(rasm_yoli):
+            os.remove(rasm_yoli)
+    
+    conn.execute('DELETE FROM filmlar WHERE id = ?', (film_id,))
+    conn.commit()
+    conn.close()
+    return redirect('/admin/dashboard')
+
+@app.route('/admin/shorts', methods=['POST'])
+@admin_required
+def add_short():
+    sarlavha = request.form.get('sarlavha')
+    video_url = request.form.get('video_url')
+    tafsilot = request.form.get('tafsilot')
+    platform = platformani_aniqla(video_url)
+    
+    conn = get_db()
+    conn.execute('''
+        INSERT INTO shorts (sarlavha, video_url, tafsilot, platform)
+        VALUES (?, ?, ?, ?)
+    ''', (sarlavha, video_url, tafsilot, platform))
+    conn.commit()
+    conn.close()
+    
+    return redirect('/admin/dashboard')
+
+@app.route('/admin/shorts/delete/<int:short_id>', methods=['POST'])
+@admin_required
+def delete_short(short_id):
+    conn = get_db()
+    conn.execute('DELETE FROM shorts WHERE id = ?', (short_id,))
+    conn.commit()
+    conn.close()
+    return redirect('/admin/dashboard')
 
 @app.route('/admin/logout')
 def admin_logout():
     session.pop('admin_logged_in', None)
-    return redirect(url_for('admin'))
-
-@app.route('/admin/film', methods=['POST'])
-def admin_add_film():
-    if not session.get('admin_logged_in'):
-        return redirect(url_for('admin'))
-    
-    kod = request.form['kod'].strip().upper()
-    nomi = request.form['nomi'].strip()
-    tafsilot = request.form.get('tafsilot', '')
-    yil = request.form.get('yil', '')
-    janr = request.form.get('janr', '')
-    video_url = request.form.get('video_url', '').strip()
-    
-    if not video_url:
-        return "Video URL manzili kerak!", 400
-    
-    video_info = get_video_info(video_url)
-    if not video_info:
-        return "Noto'g'ri video URL! YouTube, VK, UzMovi, Instagram, Vimeo, DailyMotion qo'llab-quvvatlanadi.", 400
-    
-    rasm_nomi = None
-    if 'rasm' in request.files:
-        rasm = request.files['rasm']
-        if rasm and rasm.filename and allowed_file(rasm.filename, ALLOWED_IMAGE):
-            rasm_ext = rasm.filename.rsplit('.', 1)[1].lower()
-            rasm_nomi = f"{kod}.{rasm_ext}"
-            rasm.save(os.path.join(UPLOAD_FOLDER_POSTERS, rasm_nomi))
-    
-    try:
-        with get_db() as conn:
-            conn.execute("""INSERT INTO films 
-                (kod, nomi, tafsilot, yil, janr, rasm, embed_url, video_id, platform, thumbnail, turi) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (kod, nomi, tafsilot, yil, janr, rasm_nomi, 
-                 video_info['embed_url'], video_info.get('id'), 
-                 video_info['platform'], video_info.get('thumbnail'), 'url'))
-            film_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-            conn.execute("INSERT INTO featured_films (film_id) VALUES (?)", (film_id,))
-            conn.commit()
-    except sqlite3.IntegrityError:
-        return "Bunday kod allaqachon mavjud!", 400
-    
-    return redirect(url_for('admin'))
-
-@app.route('/admin/shorts', methods=['POST'])
-def admin_add_shorts():
-    if not session.get('admin_logged_in'):
-        return redirect(url_for('admin'))
-    
-    sarlavha = request.form['sarlavha'].strip()
-    tafsilot = request.form.get('tafsilot', '')
-    video_url = request.form.get('video_url', '').strip()
-    
-    if not video_url:
-        return "Video URL manzili kerak!", 400
-    
-    video_info = get_short_info(video_url)
-    if not video_info:
-        return "Noto'g'ri video URL! YouTube Shorts, Instagram Reel, TikTok qo'llab-quvvatlanadi.", 400
-    
-    with get_db() as conn:
-        conn.execute("""INSERT INTO shorts 
-            (sarlavha, tafsilot, embed_url, video_id, platform) 
-            VALUES (?, ?, ?, ?, ?)""",
-            (sarlavha, tafsilot, video_info['embed_url'], 
-             video_info.get('id'), video_info['platform']))
-        conn.commit()
-    
-    return redirect(url_for('admin'))
-
-@app.route('/admin/film/delete/<int:id>', methods=['POST'])
-def admin_delete_film(id):
-    if not session.get('admin_logged_in'):
-        return redirect(url_for('admin'))
-    
-    with get_db() as conn:
-        row = conn.execute("SELECT rasm FROM films WHERE id = ?", (id,)).fetchone()
-        if row and row['rasm']:
-            rasm_path = os.path.join(UPLOAD_FOLDER_POSTERS, row['rasm'])
-            if os.path.exists(rasm_path):
-                os.remove(rasm_path)
-        conn.execute("DELETE FROM featured_films WHERE film_id = ?", (id,))
-        conn.execute("DELETE FROM films WHERE id = ?", (id,))
-        conn.commit()
-    
-    return redirect(url_for('admin'))
-
-@app.route('/admin/shorts/delete/<int:id>', methods=['POST'])
-def admin_delete_shorts(id):
-    if not session.get('admin_logged_in'):
-        return redirect(url_for('admin'))
-    
-    with get_db() as conn:
-        conn.execute("DELETE FROM shorts WHERE id = ?", (id,))
-        conn.commit()
-    
-    return redirect(url_for('admin'))
+    return redirect('/admin')
 
 # ============ STATIC FILES ============
-@app.route('/static/uploads/posters/<filename>')
-def serve_poster(filename):
-    return send_from_directory(UPLOAD_FOLDER_POSTERS, filename)
+@app.route('/static/uploads/<filename>')
+def uploaded_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
-# ============ ERROR HANDLERS ============
-@app.errorhandler(404)
-def not_found(error):
-    return "<h1>404 - Sahifa topilmadi!</h1><a href='/'>Bosh sahifaga qaytish</a>", 404
+# ============ API for frontend ============
+@app.route('/api/films')
+def api_films():
+    conn = get_db()
+    filmlar = conn.execute('SELECT * FROM filmlar ORDER BY id DESC').fetchall()
+    conn.close()
+    return {'films': [dict(film) for film in filmlar]}
 
+# ============ RUN ============
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 8080))
-    print("""
-    ╔══════════════════════════════════════════════════════════════════════════╗
-    ║                                                                          ║
-    ║     🎬 KINOTOP - URL VIDEO PLATFORMASI 🎬                                ║
-    ║                                                                          ║
-    ╠══════════════════════════════════════════════════════════════════════════╣
-    ║                                                                          ║
-    ║  🌐 PORT:        {}                                                       ║
-    ║  🔐 ADMIN:       /admin                                                  ║
-    ║  📝 ADMIN PASS:  Betmilion1                                              ║
-    ║                                                                          ║
-    ║  ⚡ QO'LLAB-QUVVATLANADIGAN PLATFORMALAR:                                 ║
-    ║     ✓ YouTube / YouTube Shorts                                          ║
-    ║     ✓ VK Video                                                          ║
-    ║     ✓ UzMovi                                                            ║
-    ║     ✓ Instagram / Instagram Reels                                       ║
-    ║     ✓ TikTok                                                            ║
-    ║     ✓ Vimeo                                                             ║
-    ║     ✓ DailyMotion                                                       ║
-    ║                                                                          ║
-    ╚══════════════════════════════════════════════════════════════════════════╝
-    """.format(port))
-    app.run(host='0.0.0.0', port=port, debug=False, threaded=True)
+    app.run(host='0.0.0.0', port=5000, debug=True)
