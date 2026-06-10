@@ -54,46 +54,33 @@ init_db()
 def allowed_file(filename, allowed):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed
 
-# ============ YORDAMCHI FUNKSIYALAR ============
-def get_embed_url(video_url):
-    """Video URL ni embed yoki to'g'ridan-to'g'ri URL ga o'zgartiradi"""
+# ============ URL NI TO'G'RI FORMATGA KELTIRISH ============
+def get_redirect_url(video_url):
+    """Google Drive va UZMedia uchun to'g'ri ochiladigan URL qaytaradi"""
     if not video_url:
         return video_url
     
-    # Google Drive
+    # Google Drive - preview sahifasiga o'tkazish (to'g'ridan-to'g'ri MP4 emas)
     if 'drive.google.com' in video_url:
         # File ID ni olish
         match = re.search(r'/d/([a-zA-Z0-9_-]+)', video_url)
         if match:
             file_id = match.group(1)
+            # Preview sahifasiga o'tkazish (bu yerda video o'ynaydi)
             return f'https://drive.google.com/file/d/{file_id}/preview'
         return video_url
     
-    # UZMedia embed
-    if 'uzmedia.tv/embed.html' in video_url:
-        return video_url
-    
-    # UZMedia oddiy sahifa
-    if 'uzmedia.tv' in video_url and 'embed' not in video_url:
-        return video_url
-    
-    # YouTube
-    if 'youtube.com' in video_url or 'youtu.be' in video_url:
-        # YouTube ID ni olish
-        patterns = [
-            r'(?:youtu\.be\/)([a-zA-Z0-9_-]+)',
-            r'(?:youtube\.com\/watch\?v=)([a-zA-Z0-9_-]+)',
-            r'(?:youtube\.com\/embed\/)([a-zA-Z0-9_-]+)',
-            r'(?:youtube\.com\/shorts\/)([a-zA-Z0-9_-]+)'
-        ]
-        for pattern in patterns:
-            match = re.search(pattern, video_url)
+    # UZMedia - embed versiyaga o'tkazish
+    if 'uzmedia.tv' in video_url:
+        if 'embed.html' not in video_url:
+            # Oddiy sahifani embed ga o'zgartirish
+            match = re.search(r'/([a-zA-Z0-9_-]+)$', video_url)
             if match:
                 video_id = match.group(1)
-                return f'https://www.youtube.com/embed/{video_id}?autoplay=1&rel=0'
+                return f'http://uzmedia.tv/embed.html?file={video_id}'
         return video_url
     
-    # Boshqa URL lar (to'g'ridan-to'g'ri MP4 va h.k.)
+    # Boshqa barcha URL (YouTube, MP4, v.b.) - to'g'ridan-to'g'ri ochish
     return video_url
 
 # ============ PUBLIC ROUTES ============
@@ -102,13 +89,6 @@ def index():
     with get_db() as conn:
         shorts = conn.execute("SELECT * FROM shorts ORDER BY sana DESC").fetchall()
         shorts = [dict(row) for row in shorts]
-        
-        # Shorts uchun embed_url tayyorlash
-        for short in shorts:
-            if short.get('embed_url'):
-                short['embed_url'] = get_embed_url(short['embed_url'])
-            else:
-                short['embed_url'] = short.get('video_url', '')
     
     return render_template('index.html', shorts=shorts)
 
@@ -123,9 +103,11 @@ def film_page(kod):
     film = dict(row)
     video_url = film['video_url']
     
-    # Google Drive va UZMedia havolalarini to'g'ridan-to'g'ri ochish
-    # Hech qanday player, hech qanday iframe - faqat redirect!
-    return redirect(video_url)
+    # To'g'ri ochiladigan URL ga o'girish
+    redirect_url = get_redirect_url(video_url)
+    
+    # To'g'ridan-to'g'ri redirect
+    return redirect(redirect_url)
 
 # ============ API ============
 @app.route('/api/check/<kod>')
@@ -236,7 +218,6 @@ def admin_add_shorts():
     if not video_url:
         return "Video URL manzili kerak!", 400
     
-    # Platformani aniqlash
     platform = 'other'
     if 'youtube.com' in video_url or 'youtu.be' in video_url:
         platform = 'youtube'
@@ -245,8 +226,12 @@ def admin_add_shorts():
     elif 'tiktok.com' in video_url:
         platform = 'tiktok'
     
-    # Embed URL tayyorlash
-    embed_url = get_embed_url(video_url)
+    # Shorts uchun embed URL tayyorlash
+    embed_url = video_url
+    if 'youtube.com/shorts' in video_url:
+        match = re.search(r'shorts/([a-zA-Z0-9_-]+)', video_url)
+        if match:
+            embed_url = f'https://www.youtube.com/embed/{match.group(1)}?autoplay=1'
     
     with get_db() as conn:
         conn.execute("""INSERT INTO shorts 
@@ -273,11 +258,6 @@ def serve_poster(filename):
     from flask import send_from_directory
     return send_from_directory(UPLOAD_FOLDER_POSTERS, filename)
 
-# ============ ERROR HANDLERS ============
-@app.errorhandler(404)
-def not_found(error):
-    return "<h1>404 - Sahifa topilmadi!</h1><a href='/'>Bosh sahifaga qaytish</a>", 404
-
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
     print(f"""
@@ -293,14 +273,10 @@ if __name__ == '__main__':
     ║                                                              ║
     ║  💡 QANDAY ISHLAYDI:                                        ║
     ║                                                              ║
-    ║     /film/1234  →  REDIRECT  →  Siz kiritgan URL            ║
-    ║                                                              ║
-    ║  📌 QO'LLAB-QUVVATLANADIGAN URL TURLARI:                    ║
-    ║     ✓ Google Drive  (drive.google.com/file/d/...)          ║
-    ║     ✓ UZMedia.tv    (uzmedia.tv/embed.html?file=...)       ║
-    ║     ✓ YouTube       (youtube.com/watch?v=...)              ║
-    ║     ✓ To'g'ridan-to'g'ri MP4                               ║
-    ║     ✓ Boshqa har qanday video havolasi                      ║
+    ║     Google Drive  →  /file/ID/preview  (preview sahifasi)   ║
+    ║     UZMedia       →  /embed.html?file=... (embed player)    ║
+    ║     YouTube       →  /embed/ID?autoplay=1                   ║
+    ║     Boshqa URL    →  to'g'ridan-to'g'ri redirect            ║
     ║                                                              ║
     ╚══════════════════════════════════════════════════════════════╝
     """)
