@@ -54,31 +54,43 @@ init_db()
 def allowed_file(filename, allowed):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed
 
-# ============ TO'G'RIDAN-TO'G'RI MP4 URL OLISH ============
-def get_direct_mp4_url(video_url):
-    """Google Drive va UZMedia dan to'g'ridan-to'g'ri MP4 havolasini olish"""
+# ============ TO'G'RIDAN-TO'G'RI TOMOSHA QILISH UCHUN URL ============
+def get_direct_watch_url(video_url):
+    """Yuklab olish EMAS, to'g'ridan-to'g'ri tomosha qilish uchun URL"""
     if not video_url:
         return None
     
-    # Google Drive -> to'g'ridan-to'g'ri MP4
+    # Google Drive -> preview sahifasi (tomosha qilish uchun)
     if 'drive.google.com' in video_url:
         match = re.search(r'/d/([a-zA-Z0-9_-]+)', video_url)
         if match:
             file_id = match.group(1)
-            return f'https://drive.google.com/uc?export=download&id={file_id}'
+            # Yuklab olish EMAS, preview sahifasi (tomosha)
+            return f'https://drive.google.com/file/d/{file_id}/preview'
         return video_url
     
-    # UZMedia embed -> to'g'ridan-to'g'ri MP4
+    # UZMedia embed -> to'g'ridan-to'g'ri MP4 (tomosha)
     if 'uzmedia.tv/embed.html' in video_url:
         file_match = re.search(r'file=([^&]+)', video_url)
         if file_match:
             direct_url = file_match.group(1)
-            # URL decode qilish
             direct_url = direct_url.replace('%20', ' ')
             direct_url = direct_url.replace('%28', '(')
             direct_url = direct_url.replace('%29', ')')
-            direct_url = direct_url.replace('%27', "'")
             return direct_url
+        return video_url
+    
+    # YouTube -> embed (tomosha)
+    if 'youtube.com' in video_url or 'youtu.be' in video_url:
+        patterns = [
+            r'(?:youtu\.be\/)([a-zA-Z0-9_-]+)',
+            r'(?:youtube\.com\/watch\?v=)([a-zA-Z0-9_-]+)'
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, video_url)
+            if match:
+                video_id = match.group(1)
+                return f'https://www.youtube.com/embed/{video_id}?autoplay=1&rel=0'
         return video_url
     
     # To'g'ridan-to'g'ri MP4
@@ -108,7 +120,7 @@ def index():
 
 @app.route('/film/<kod>')
 def film_page(kod):
-    """Telefon playerida ochish uchun to'g'ridan-to'g'ri MP4 havolasiga redirect"""
+    """Telefon playerida tomosha qilish uchun sahifa"""
     with get_db() as conn:
         row = conn.execute("SELECT * FROM films WHERE kod = ?", (kod.upper(),)).fetchone()
     
@@ -116,16 +128,7 @@ def film_page(kod):
         return "Film topilmadi!", 404
     
     film = dict(row)
-    video_url = film['video_url']
-    
-    # To'g'ridan-to'g'ri MP4 havolasini olish
-    direct_url = get_direct_mp4_url(video_url)
-    
-    if not direct_url:
-        return "Video MP4 formatida emas!", 400
-    
-    # To'g'ridan-to'g'ri MP4 faylga redirect (telefon playeri ochadi)
-    return redirect(direct_url)
+    return render_template('film.html', film=film)
 
 # ============ API ============
 @app.route('/api/check/<kod>')
@@ -140,6 +143,27 @@ def check_film(kod):
             "platform": row['platform']
         }), 200
     return jsonify({"exists": False}), 404
+
+@app.route('/api/watch/<kod>')
+def api_watch_url(kod):
+    """Tomosha qilish uchun to'g'ri URL ni qaytaradi"""
+    with get_db() as conn:
+        row = conn.execute("SELECT * FROM films WHERE kod = ?", (kod.upper(),)).fetchone()
+    
+    if not row:
+        return jsonify({"exists": False}), 404
+    
+    film = dict(row)
+    video_url = film['video_url']
+    
+    # Tomosha qilish uchun URL
+    watch_url = get_direct_watch_url(video_url)
+    
+    return jsonify({
+        "exists": True,
+        "watch_url": watch_url,
+        "nomi": film['nomi']
+    })
 
 # ============ ADMIN PANEL ============
 @app.route('/admin', methods=['GET', 'POST'])
@@ -265,7 +289,7 @@ if __name__ == '__main__':
     print(f"""
     ╔══════════════════════════════════════════════════════════════════════╗
     ║                                                                      ║
-    ║     🎬 KINOTOP - TELEFON PLAYER VERSION 🎬                           ║
+    ║     🎬 KINOTOP - TOMOSHA QILISH VERSION 🎬                           ║
     ║                                                                      ║
     ╠══════════════════════════════════════════════════════════════════════╣
     ║                                                                      ║
@@ -275,14 +299,12 @@ if __name__ == '__main__':
     ║                                                                      ║
     ║  📱 QANDAY ISHLAYDI:                                                 ║
     ║                                                                      ║
-    ║     Kod kiritish → /film/KOD → redirect → MP4 → Telefon playeri ✅  ║
+    ║     Google Drive  →  preview sahifasi (tomosha) ✅                   ║
+    ║     UZMedia       →  to'g'ridan-to'g'ri MP4 (tomosha) ✅             ║
+    ║     YouTube       →  embed player (tomosha) ✅                       ║
     ║                                                                      ║
-    ║  📌 QO'LLAB-QUVVATLANADIGAN URL TURLARI:                             ║
-    ║     ✓ Google Drive  →  to'g'ridan-to'g'ri MP4                       ║
-    ║     ✓ UZMedia.tv    →  to'g'ridan-to'g'ri MP4                       ║
-    ║     ✓ To'g'ridan-to'g'ri MP4                                       ║
+    ║  ⚠️ YUKLAB OLISH EMAS, TOMOSHA QILISH! 📺                           ║
     ║                                                                      ║
     ╚══════════════════════════════════════════════════════════════════════╝
     """)
     app.run(host='0.0.0.0', port=port, debug=True)
-    
