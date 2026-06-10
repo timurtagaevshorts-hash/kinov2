@@ -35,12 +35,19 @@
             width: 100%;
             height: 100%;
             background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
+        /* VIDEO - TO'LIQ EKRAN KATTA QILIB */
         .video-wrapper iframe {
             width: 100%;
             height: 100%;
             border: none;
+            position: absolute;
+            top: 0;
+            left: 0;
         }
 
         .video-wrapper video {
@@ -55,38 +62,10 @@
             top: 15px;
             left: 15px;
             z-index: 100;
-            background: rgba(0,0,0,0.5);
+            background: rgba(0,0,0,0.6);
             backdrop-filter: blur(10px);
-            width: 44px;
-            height: 44px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            text-decoration: none;
-            font-size: 1.2rem;
-            cursor: pointer;
-            border: 1px solid rgba(255,255,255,0.2);
-            transition: all 0.2s ease;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        .back-btn:active {
-            transform: scale(0.92);
-            background: rgba(102,126,234,0.8);
-        }
-
-        /* Fullscreen tugmasi - telefon uchun kattaroq */
-        .fullscreen-btn {
-            position: fixed;
-            bottom: 25px;
-            right: 20px;
-            z-index: 100;
-            background: rgba(0,0,0,0.5);
-            backdrop-filter: blur(10px);
-            width: 50px;
-            height: 50px;
+            width: 48px;
+            height: 48px;
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -96,7 +75,32 @@
             cursor: pointer;
             border: 1px solid rgba(255,255,255,0.2);
             transition: all 0.2s ease;
-            -webkit-tap-highlight-color: transparent;
+        }
+
+        .back-btn:active {
+            transform: scale(0.92);
+            background: rgba(102,126,234,0.8);
+        }
+
+        /* Fullscreen tugmasi */
+        .fullscreen-btn {
+            position: fixed;
+            bottom: 25px;
+            right: 20px;
+            z-index: 100;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(10px);
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.4rem;
+            cursor: pointer;
+            border: 1px solid rgba(255,255,255,0.2);
+            transition: all 0.2s ease;
         }
 
         .fullscreen-btn:active {
@@ -104,7 +108,112 @@
             background: rgba(102,126,234,0.8);
         }
 
-        /* Yuklash animatsiyasi */
+        /* ============ SENSOR BOSHQARUV (TELEFON UCHUN) ============ */
+        .gesture-area {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            top: 0;
+            z-index: 15;
+            background: transparent;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            pointer-events: none;
+        }
+
+        .gesture-top {
+            pointer-events: auto;
+            height: 30%;
+            width: 100%;
+        }
+
+        .gesture-bottom {
+            pointer-events: auto;
+            height: 20%;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .gesture-left, .gesture-right {
+            pointer-events: auto;
+            width: 20%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .gesture-left {
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+        }
+
+        .gesture-right {
+            position: absolute;
+            right: 0;
+            top: 0;
+            height: 100%;
+        }
+
+        .gesture-center {
+            pointer-events: auto;
+            width: 60%;
+            height: 100%;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Sensor ko'rsatkichlari (animatsiya) */
+        .gesture-hint {
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(20px);
+            padding: 8px 16px;
+            border-radius: 30px;
+            color: white;
+            font-size: 0.7rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+
+        .gesture-hint.show {
+            opacity: 1;
+        }
+
+        .gesture-hint i {
+            font-size: 0.8rem;
+        }
+
+        /* Progress bar (sensor uchun) */
+        .video-progress {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: rgba(255,255,255,0.2);
+            z-index: 50;
+        }
+
+        .video-progress-filled {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.1s linear;
+        }
+
+        /* Yuklash */
         .loading {
             position: fixed;
             top: 0;
@@ -144,7 +253,6 @@
             font-size: 0.9rem;
         }
 
-        /* Xato xabari */
         .error-msg {
             position: fixed;
             bottom: 30px;
@@ -165,7 +273,7 @@
             transform: translateY(0);
         }
 
-        /* Telefon uchun maxsus (iPhone va Android) */
+        /* Safe area */
         @supports (padding: max(0px)) {
             .back-btn {
                 top: max(15px, env(safe-area-inset-top));
@@ -177,62 +285,9 @@
             }
         }
 
-        /* Kichik telefonlar (iPhone SE, Galaxy) */
-        @media (max-width: 380px) {
-            .fullscreen-btn {
-                width: 44px;
-                height: 44px;
-                font-size: 1.1rem;
-                bottom: 20px;
-                right: 15px;
-            }
-            .back-btn {
-                width: 40px;
-                height: 40px;
-                font-size: 1rem;
-                top: 12px;
-                left: 12px;
-            }
-        }
-
-        /* Katta telefonlar (iPhone Pro Max) */
-        @media (min-width: 390px) and (max-width: 430px) {
-            .fullscreen-btn {
-                width: 52px;
-                height: 52px;
-                font-size: 1.4rem;
-            }
-        }
-
-        /* iPad va planshetlar */
-        @media (min-width: 768px) {
-            .fullscreen-btn {
-                width: 55px;
-                height: 55px;
-                font-size: 1.4rem;
-            }
-            .back-btn {
-                width: 50px;
-                height: 50px;
-                font-size: 1.3rem;
-            }
-        }
-
-        /* Landscape (gorizontal) holatda */
-        @media (orientation: landscape) {
-            .fullscreen-btn {
-                bottom: 15px;
-                right: 15px;
-                width: 42px;
-                height: 42px;
-                font-size: 1rem;
-            }
-            .back-btn {
-                top: 10px;
-                left: 10px;
-                width: 38px;
-                height: 38px;
-                font-size: 0.9rem;
+        @media (max-width: 480px) {
+            .back-btn, .fullscreen-btn {
+                -webkit-backdrop-filter: blur(10px);
             }
         }
     </style>
@@ -252,13 +307,40 @@
     <div class="fullscreen-btn" id="fullscreenBtn">
         <i class="fas fa-expand"></i>
     </div>
-    
+
     <div class="video-wrapper" id="videoWrapper">
         {% if film.platform == 'direct' %}
             <video id="videoPlayer" src="{{ film.video_url }}" controls autoplay playsinline webkit-playsinline style="width:100%;height:100%"></video>
         {% else %}
             <iframe id="videoPlayer" src="{{ film.video_url }}" allow="autoplay; fullscreen" allowfullscreen></iframe>
         {% endif %}
+    </div>
+
+    <!-- SENSOR BOSHQARUV ZONALARI -->
+    <div class="gesture-area">
+        <div class="gesture-top" id="gestureTop"></div>
+        <div class="gesture-bottom">
+            <div class="gesture-left" id="gestureLeft">
+                <div class="gesture-hint" id="leftHint">
+                    <i class="fas fa-backward"></i> 10s
+                </div>
+            </div>
+            <div class="gesture-center" id="gestureCenter">
+                <div class="gesture-hint" id="centerHint">
+                    <i class="fas fa-play"></i>
+                </div>
+            </div>
+            <div class="gesture-right" id="gestureRight">
+                <div class="gesture-hint" id="rightHint">
+                    10s <i class="fas fa-forward"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Progress bar -->
+    <div class="video-progress">
+        <div class="video-progress-filled" id="progressFilled"></div>
     </div>
 </div>
 
@@ -274,6 +356,35 @@
         const fullscreenBtn = document.getElementById('fullscreenBtn');
         const videoWrapper = document.getElementById('videoWrapper');
         const videoPlayer = document.getElementById('videoPlayer');
+        const progressFilled = document.getElementById('progressFilled');
+        
+        // Sensor elementlari
+        const gestureLeft = document.getElementById('gestureLeft');
+        const gestureRight = document.getElementById('gestureRight');
+        const gestureCenter = document.getElementById('gestureCenter');
+        const gestureTop = document.getElementById('gestureTop');
+        const leftHint = document.getElementById('leftHint');
+        const rightHint = document.getElementById('rightHint');
+        const centerHint = document.getElementById('centerHint');
+        
+        let isPlaying = true;
+        let currentVideo = null;
+        let isIframe = true;
+        let hideHintsTimer = null;
+        
+        function showHint(element, show = true) {
+            if (show) {
+                element.classList.add('show');
+                if (hideHintsTimer) clearTimeout(hideHintsTimer);
+                hideHintsTimer = setTimeout(() => {
+                    leftHint.classList.remove('show');
+                    rightHint.classList.remove('show');
+                    centerHint.classList.remove('show');
+                }, 800);
+            } else {
+                element.classList.remove('show');
+            }
+        }
         
         function showError(text) {
             errorMsg.innerHTML = '<i class="fas fa-exclamation-triangle"></i> ' + text;
@@ -281,125 +392,210 @@
             setTimeout(() => errorMsg.classList.remove('show'), 4000);
         }
         
-        // Yuklashni yashirish
+        // Yuklash
         setTimeout(() => {
             loading.classList.add('hide');
         }, 1500);
         
-        // Orqaga qaytish (telefon uchun ham ishlaydi)
-        backBtn.addEventListener('click', (e) => {
-            e.preventDefault();
+        // Orqaga qaytish
+        backBtn.addEventListener('click', () => {
             window.location.href = '/';
         });
         
-        // Telefonda "Orqaga" gesti (swipe from left)
+        // ============ VIDEO BOSHQARUV FUNKSIYALARI ============
+        function getVideoElement() {
+            if (videoPlayer && videoPlayer.tagName === 'VIDEO') {
+                isIframe = false;
+                return videoPlayer;
+            }
+            isIframe = true;
+            return null;
+        }
+        
+        function togglePlayPause() {
+            const video = getVideoElement();
+            if (video && !isIframe) {
+                if (video.paused) {
+                    video.play();
+                    isPlaying = true;
+                    centerHint.innerHTML = '<i class="fas fa-pause"></i>';
+                } else {
+                    video.pause();
+                    isPlaying = false;
+                    centerHint.innerHTML = '<i class="fas fa-play"></i>';
+                }
+                showHint(centerHint, true);
+            }
+        }
+        
+        function seekBackward() {
+            const video = getVideoElement();
+            if (video && !isIframe) {
+                video.currentTime = Math.max(0, video.currentTime - 10);
+                showHint(leftHint, true);
+                updateProgress();
+            }
+        }
+        
+        function seekForward() {
+            const video = getVideoElement();
+            if (video && !isIframe) {
+                video.currentTime = Math.min(video.duration, video.currentTime + 10);
+                showHint(rightHint, true);
+                updateProgress();
+            }
+        }
+        
+        function updateProgress() {
+            const video = getVideoElement();
+            if (video && !isIframe && video.duration) {
+                const percent = (video.currentTime / video.duration) * 100;
+                progressFilled.style.width = percent + '%';
+            }
+        }
+        
+        // Progressni yangilash
+        if (videoPlayer && videoPlayer.tagName === 'VIDEO') {
+            videoPlayer.addEventListener('timeupdate', updateProgress);
+            videoPlayer.addEventListener('loadedmetadata', () => {
+                progressFilled.style.width = '0%';
+            });
+            videoPlayer.addEventListener('play', () => {
+                isPlaying = true;
+                centerHint.innerHTML = '<i class="fas fa-pause"></i>';
+            });
+            videoPlayer.addEventListener('pause', () => {
+                isPlaying = false;
+                centerHint.innerHTML = '<i class="fas fa-play"></i>';
+            });
+        }
+        
+        // ============ SENSOR BOSHQARUV (TELEFON UCHUN) ============
+        // Chapga surish (10 soniya orqaga)
         let touchStartX = 0;
-        document.addEventListener('touchstart', (e) => {
+        let touchStartY = 0;
+        let touchEndX = 0;
+        let touchEndY = 0;
+        
+        gestureLeft.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
             touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
         });
-        document.addEventListener('touchend', (e) => {
-            const touchEndX = e.changedTouches[0].clientX;
-            if (touchStartX < 50 && touchEndX > touchStartX + 50) {
-                window.location.href = '/';
+        
+        gestureLeft.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            touchEndX = e.changedTouches[0].clientX;
+            touchEndY = e.changedTouches[0].clientY;
+            const diffX = touchStartX - touchEndX;
+            const diffY = Math.abs(touchStartY - touchEndY);
+            
+            if (diffX > 30 && diffY < 50) {
+                seekBackward();
             }
         });
         
-        // FULL SCREEN FUNKSIYASI (telefon uchun optimallashtirilgan)
+        // O'ngga surish (10 soniya oldinga)
+        gestureRight.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+        });
+        
+        gestureRight.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            touchEndX = e.changedTouches[0].clientX;
+            touchEndY = e.changedTouches[0].clientY;
+            const diffX = touchEndX - touchStartX;
+            const diffY = Math.abs(touchStartY - touchEndY);
+            
+            if (diffX > 30 && diffY < 50) {
+                seekForward();
+            }
+        });
+        
+        // Markazga bosish (play/pause)
+        gestureCenter.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            togglePlayPause();
+        });
+        
+        // Yuqoriga surish (full screen)
+        let topTouchStart = 0;
+        gestureTop.addEventListener('touchstart', (e) => {
+            topTouchStart = e.touches[0].clientY;
+        });
+        
+        gestureTop.addEventListener('touchend', (e) => {
+            const topTouchEnd = e.changedTouches[0].clientY;
+            if (topTouchStart - topTouchEnd > 50) {
+                toggleFullScreen();
+            }
+        });
+        
+        // ============ FULL SCREEN ============
         function toggleFullScreen() {
             const container = document.querySelector('.video-container');
-            
             if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-                // Fullscreen ga o'tish
                 if (container.requestFullscreen) {
                     container.requestFullscreen();
                 } else if (container.webkitRequestFullscreen) {
                     container.webkitRequestFullscreen();
-                } else if (container.msRequestFullscreen) {
-                    container.msRequestFullscreen();
                 }
                 fullscreenBtn.innerHTML = '<i class="fas fa-compress"></i>';
-                // Telefonda orientation lock qilish (ixtiyoriy)
-                try {
-                    screen.orientation?.lock('landscape');
-                } catch(e) {}
             } else {
-                // Fullscreen dan chiqish
                 if (document.exitFullscreen) {
                     document.exitFullscreen();
                 } else if (document.webkitExitFullscreen) {
                     document.webkitExitFullscreen();
-                } else if (document.msExitFullscreen) {
-                    document.msExitFullscreen();
                 }
                 fullscreenBtn.innerHTML = '<i class="fas fa-expand"></i>';
-                // Orientation lockni qaytarish
-                try {
-                    screen.orientation?.unlock();
-                } catch(e) {}
             }
         }
         
-        // Fullscreen tugmasi bosilganda
         fullscreenBtn.addEventListener('click', toggleFullScreen);
-        fullscreenBtn.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            toggleFullScreen();
-        });
         
-        // Fullscreen o'zgarganini kuzatish
-        document.addEventListener('fullscreenchange', updateFullscreenIcon);
-        document.addEventListener('webkitfullscreenchange', updateFullscreenIcon);
-        
-        function updateFullscreenIcon() {
-            if (document.fullscreenElement || document.webkitFullscreenElement) {
-                fullscreenBtn.innerHTML = '<i class="fas fa-compress"></i>';
-            } else {
+        document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement && !document.webkitFullscreenElement) {
                 fullscreenBtn.innerHTML = '<i class="fas fa-expand"></i>';
             }
-        }
+        });
         
-        // Video player xatoliklari
-        if (videoPlayer && videoPlayer.tagName === 'VIDEO') {
-            videoPlayer.onerror = function() {
-                showError('Video yuklanmadi. URL manzilni tekshiring.');
-            };
-            // Telefonda autoplay uchun
-            videoPlayer.playsInline = true;
-            videoPlayer.webkitPlaysInline = true;
-        }
-        
-        // Iframe yuklanganda loading ni yashirish
+        // Iframe xatoligi
         if (videoPlayer && videoPlayer.tagName === 'IFRAME') {
-            videoPlayer.onload = function() {
-                setTimeout(() => {
-                    loading.classList.add('hide');
-                }, 500);
+            videoPlayer.onload = () => {
+                setTimeout(() => loading.classList.add('hide'), 500);
             };
         }
         
-        // Klaviatura orqali fullscreen (F tugmasi)
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'f' || e.key === 'F' || e.key === 'F11') {
+        // Klaviatura
+        document.addEventListener('keydown', (e) => {
+            if (e.key === ' ' || e.key === 'Space') {
                 e.preventDefault();
+                togglePlayPause();
+            } else if (e.key === 'ArrowLeft') {
+                seekBackward();
+            } else if (e.key === 'ArrowRight') {
+                seekForward();
+            } else if (e.key === 'f' || e.key === 'F') {
                 toggleFullScreen();
-            }
-            if (e.key === 'Escape') {
-                setTimeout(() => {
-                    fullscreenBtn.innerHTML = '<i class="fas fa-expand"></i>';
-                }, 100);
             }
         });
         
-        // Double tap fullscreen (telefon uchun)
-        let lastTap = 0;
-        videoWrapper.addEventListener('touchstart', (e) => {
-            const currentTime = new Date().getTime();
-            const tapLength = currentTime - lastTap;
-            if (tapLength < 300 && tapLength > 0) {
-                e.preventDefault();
-                toggleFullScreen();
+        // Chap chetidan surish orqaga qaytish
+        document.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+        });
+        document.addEventListener('touchend', (e) => {
+            const touchEnd = e.changedTouches[0].clientX;
+            if (touchStartX < 30 && touchEnd > touchStartX + 60) {
+                window.location.href = '/';
             }
-            lastTap = currentTime;
         });
     })();
 </script>
