@@ -26,83 +26,7 @@
             width: 100%;
         }
 
-        /* professional preloader animation */
-        .preloader {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: radial-gradient(circle at 20% 30%, #0a0a1a, #03030c);
-            z-index: 1000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: opacity 0.6s cubic-bezier(0.2, 0.9, 0.4, 1.1), visibility 0.6s ease;
-            backdrop-filter: blur(2px);
-        }
-        .preloader.hide { opacity: 0; visibility: hidden; }
-        .preloader-content { text-align: center; animation: fadeInScale 0.7s ease; }
-        .preloader-logo { font-size: 5rem; filter: drop-shadow(0 0 15px rgba(102,126,234,0.6)); animation: gentleBounce 1.2s infinite; }
-        .preloader-title {
-            font-size: 2.2rem;
-            font-weight: 800;
-            background: linear-gradient(135deg, #FFFFFF, #b9c3ff, #9b6dff);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin: 20px 0 10px;
-            letter-spacing: -0.5px;
-        }
-        .preloader-subtitle { color: rgba(255,255,255,0.7); font-size: 0.9rem; margin-bottom: 30px; font-weight: 400; }
-        .start-btn {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            border: none;
-            padding: 14px 42px;
-            border-radius: 60px;
-            color: white;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 8px 20px rgba(102,126,234,0.3);
-        }
-        .start-btn:active { transform: scale(0.96); }
-
-        @keyframes fadeInScale {
-            from { opacity: 0; transform: scale(0.96); }
-            to { opacity: 1; transform: scale(1); }
-        }
-        @keyframes gentleBounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-12px); }
-        }
-
-        .scroll-instruction {
-            position: absolute;
-            bottom: 150px;
-            left: 0;
-            right: 0;
-            text-align: center;
-            z-index: 55;
-            pointer-events: none;
-            transition: opacity 0.4s;
-        }
-        .scroll-instruction.hide { opacity: 0; visibility: hidden; }
-        .scroll-arrow {
-            width: 32px;
-            height: 32px;
-            border-left: 2.5px solid rgba(255,255,255,0.8);
-            border-bottom: 2.5px solid rgba(255,255,255,0.8);
-            transform: rotate(-45deg);
-            margin: 0 auto 12px;
-            animation: modernArrow 1.6s infinite;
-        }
-        .scroll-text { color: rgba(255,255,255,0.9); font-size: 0.85rem; font-weight: 500; letter-spacing: 1px; backdrop-filter: blur(8px); background: rgba(0,0,0,0.3); padding: 6px 16px; border-radius: 40px; display: inline-block; }
-        @keyframes modernArrow {
-            0%, 100% { transform: rotate(-45deg) translate(0,0); opacity: 0.4; }
-            50% { transform: rotate(-45deg) translate(10px,10px); opacity: 1; }
-        }
-
+        /* Shredded preloader - TEZ KIRISH */
         .shorts-container {
             position: relative;
             width: 100%;
@@ -416,6 +340,37 @@
         @keyframes spin { to { transform: rotate(360deg); } }
         .film-loading-text { color: white; font-size: 1rem; }
 
+        /* scroll instruction */
+        .scroll-instruction {
+            position: absolute;
+            bottom: 150px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            z-index: 55;
+            pointer-events: none;
+            transition: opacity 0.5s ease;
+            opacity: 1;
+        }
+        .scroll-instruction.fade-out {
+            opacity: 0;
+            visibility: hidden;
+        }
+        .scroll-arrow {
+            width: 32px;
+            height: 32px;
+            border-left: 2.5px solid rgba(255,255,255,0.8);
+            border-bottom: 2.5px solid rgba(255,255,255,0.8);
+            transform: rotate(-45deg);
+            margin: 0 auto 12px;
+            animation: modernArrow 1.6s infinite;
+        }
+        .scroll-text { color: rgba(255,255,255,0.9); font-size: 0.85rem; font-weight: 500; letter-spacing: 1px; backdrop-filter: blur(8px); background: rgba(0,0,0,0.3); padding: 6px 16px; border-radius: 40px; display: inline-block; }
+        @keyframes modernArrow {
+            0%, 100% { transform: rotate(-45deg) translate(0,0); opacity: 0.4; }
+            50% { transform: rotate(-45deg) translate(8px,8px); opacity: 1; }
+        }
+
         @media (max-width: 480px) {
             .code-digits { font-size: 2rem; letter-spacing: 12px; }
             .numpad-btn { padding: 14px; font-size: 1.4rem; }
@@ -426,14 +381,7 @@
 </head>
 <body>
 
-<div class="preloader" id="preloader">
-    <div class="preloader-content">
-        <div class="preloader-logo">🎬✨</div>
-        <div class="preloader-title">KINOTOP SHORTS</div>
-        <div class="preloader-subtitle">Eng sara shortslar, yuqori sifat</div>
-        <button class="start-btn" id="startBtn">🎥 Boshlash</button>
-    </div>
-</div>
+<!-- hech qanday preloader yo'q --> 
 
 <div class="scroll-instruction" id="scrollInstruction">
     <div class="scroll-arrow"></div>
@@ -443,7 +391,7 @@
 <div class="logo"><span>🎬 KINOTOP</span></div>
 <a href="/admin" class="admin-btn">🔐</a>
 
-<div class="shorts-container" id="shortsContainer" style="display: none;"></div>
+<div class="shorts-container" id="shortsContainer"></div>
 
 <div class="code-btn" id="openModalBtn">
     <div class="code-btn-left">
@@ -487,9 +435,10 @@
 </div>
 
 <script>
-    // SERVER tomonidan beriladigan shortslar (original)
+    // SERVER tomonidan beriladigan shortslar (dinamik)
     const originalShorts = {{ shorts | tojson | safe }};
     
+    // Tasodifiy tartib
     function shuffleArray(arr) {
         for (let i = arr.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
@@ -508,6 +457,7 @@
         return div.innerHTML;
     }
     
+    // SHORTLARNI TEZ RENDER QILISH
     function renderShorts() {
         shortsContainer.innerHTML = '';
         shorts.forEach((short, idx) => {
@@ -536,20 +486,23 @@
         });
     }
     
-    // ---------- VIDEO MANAGEMENT ----------
+    // ---------- VIDEO MANAGEMENT (OPTIMIZED) ----------
     let allVideos = [];
     let currentIndex = -1;
     let currentIframe = null;
+    let isVideoLoading = false;
     
     function getAllVideos() {
         allVideos = Array.from(document.querySelectorAll('.short-video'));
     }
     
     function playVideoAt(index) {
-        if (index === currentIndex) return;
+        if (index === currentIndex || isVideoLoading) return;
         if (index < 0 || index >= allVideos.length) return;
-    
-        // To'liq tozalash
+        
+        isVideoLoading = true;
+        
+        // Barcha iframelarni tozalash
         allVideos.forEach(item => {
             const iframe = item.querySelector("iframe");
             if (iframe) {
@@ -561,31 +514,38 @@
     
         const video = allVideos[index];
         const iframe = video.querySelector("iframe");
-        if (!iframe) return;
+        if (!iframe) {
+            isVideoLoading = false;
+            return;
+        }
     
         let src = iframe.dataset.src;
+        // Ovozli va autoplay majburiy
         if (!src.includes("autoplay=1")) {
             src += (src.includes("?") ? "&" : "?") + "autoplay=1";
         }
         if (!src.includes("mute=0")) {
             src += "&mute=0";
         }
+        
+        // Ovoz belgisini default holatga keltirish
+        document.querySelectorAll('.sound-btn').forEach(btn => { btn.innerHTML = '🔇'; });
+        const soundBtn = video.querySelector('.sound-btn');
+        if (soundBtn) soundBtn.innerHTML = '🔊';
+        
         setTimeout(() => {
             iframe.src = src;
             iframe.classList.remove("inactive");
             iframe.classList.add("active");
-        }, 80);
-    
-        currentIframe = iframe;
-        currentIndex = index;
-        
-        document.querySelectorAll('.sound-btn').forEach(btn => { btn.innerHTML = '🔇'; });
-        const soundBtn = video.querySelector('.sound-btn');
-        if (soundBtn) soundBtn.innerHTML = '🔊';
+            currentIframe = iframe;
+            currentIndex = index;
+            isVideoLoading = false;
+        }, 50);
     }
     
     function toggleSound(btn) {
         const parent = btn.closest('.short-video');
+        if (!parent) return;
         const idx = parseInt(parent.getAttribute('data-index'));
         if (idx === currentIndex && currentIframe && currentIframe.contentWindow) {
             if (btn.innerHTML === '🔊') {
@@ -600,7 +560,7 @@
         }
     }
     
-    // ULASHISH (TELEGRAM orqali) — professional redirect
+    // ULASHISH: Telegram bot orqali yuborish (talabga muvofiq)
     function shareToTelegram(videoTitle) {
         const botUsername = "Kodlikino_topbot";
         const message = `🎬 KinoTop🤩 t.me/${botUsername} da eng sara filmlarni tomosha qiling! 🔥 ${videoTitle} ajoyib!`;
@@ -609,6 +569,7 @@
     }
     
     function attachEventListeners() {
+        // Ovoz tugmalari
         document.querySelectorAll('.sound-btn').forEach(btn => {
             const newBtn = btn.cloneNode(true);
             btn.parentNode.replaceChild(newBtn, btn);
@@ -618,6 +579,7 @@
             });
         });
         
+        // Share tugmalari (like o'rniga)
         document.querySelectorAll('.share-btn').forEach(btn => {
             const newShare = btn.cloneNode(true);
             btn.parentNode.replaceChild(newShare, btn);
@@ -631,7 +593,12 @@
         });
     }
     
-    function initFirstVideo() { if (allVideos.length > 0) playVideoAt(0); }
+    function initFirstVideo() {
+        if (allVideos.length > 0) {
+            // Tezda birinchi videoni boshlash
+            setTimeout(() => playVideoAt(0), 30);
+        }
+    }
     
     function getCurrentVisibleIndex() {
         const scrollTop = shortsContainer.scrollTop;
@@ -644,7 +611,7 @@
     let lastScrollTime = 0;
     function onScrollHandler() {
         const now = Date.now();
-        if (now - lastScrollTime < 50) return;
+        if (now - lastScrollTime < 45) return;
         lastScrollTime = now;
         if (scrollTimer) clearTimeout(scrollTimer);
         scrollTimer = setTimeout(() => {
@@ -652,10 +619,10 @@
             if (newIndex !== currentIndex && newIndex >= 0 && newIndex < allVideos.length) {
                 playVideoAt(newIndex);
             }
-        }, 90);
+        }, 70);
     }
     
-    // ---------- KOD MODAL ----------
+    // ---------- KOD MODAL (FILM KODI) ----------
     let currentCode = '';
     const maxCodeLength = 4;
     const codeDisplay = document.getElementById('codeDisplay');
@@ -667,7 +634,10 @@
     const backspaceBtn = document.getElementById('backspaceBtn');
     const watchSubmitBtn = document.getElementById('watchSubmitBtn');
     
-    function updateDisplay() { codeDisplay.textContent = currentCode.padEnd(maxCodeLength, '_'); if (currentCode.length === maxCodeLength) submitCode(); }
+    function updateDisplay() { 
+        codeDisplay.textContent = currentCode.padEnd(maxCodeLength, '_'); 
+        if (currentCode.length === maxCodeLength) submitCode(); 
+    }
     function addDigit(d) { if (currentCode.length < maxCodeLength) { currentCode += d; updateDisplay(); } }
     function clearCode() { currentCode = ''; updateDisplay(); }
     function backspaceFunc() { currentCode = currentCode.slice(0, -1); updateDisplay(); }
@@ -708,19 +678,14 @@
     window.addEventListener("beforeunload", () => { document.querySelectorAll("iframe").forEach(i => { i.src = "about:blank"; }); });
     document.addEventListener("visibilitychange", () => { if (document.hidden) { document.querySelectorAll("iframe").forEach(i => { i.src = "about:blank"; }); } });
     
-    // START APPLICATION
-    const preloaderDiv = document.getElementById('preloader');
-    const startButton = document.getElementById('startBtn');
-    const scrollInstructionDiv = document.getElementById('scrollInstruction');
-    
-    startButton.addEventListener('click', () => {
-        preloaderDiv.classList.add('hide');
-        shortsContainer.style.display = 'block';
-        renderShorts();
+    // ============ BARCHA NARSALAR DARHOL ISHLAYDI (PRELOADER YO'Q) ============
+    function initApp() {
+        renderShorts();               // Tez render
         getAllVideos();
         attachEventListeners();
         shortsContainer.addEventListener('scroll', onScrollHandler);
         
+        // touch support
         let touchStartY = 0, touchEndY = 0, touchTimer = null;
         shortsContainer.addEventListener('touchstart', (e) => { touchStartY = e.touches[0].clientY; }, { passive: true });
         shortsContainer.addEventListener('touchmove', (e) => { touchEndY = e.touches[0].clientY; }, { passive: true });
@@ -731,15 +696,22 @@
                 touchTimer = setTimeout(() => {
                     const newIndex = getCurrentVisibleIndex();
                     if (newIndex !== currentIndex && newIndex >= 0 && newIndex < allVideos.length) playVideoAt(newIndex);
-                }, 80);
+                }, 70);
             }
         });
         
+        // yo'riqnoma avtomatik yashirish
+        const instr = document.getElementById('scrollInstruction');
         setTimeout(() => {
-            scrollInstructionDiv.classList.add('hide');
-            if (allVideos.length > 0) initFirstVideo();
-        }, 400);
-    });
+            if (instr) instr.classList.add('fade-out');
+        }, 2500);
+        
+        // birinchi videoni ishga tushirish
+        initFirstVideo();
+    }
+    
+    // START (hech qanday preloader kutmaydi)
+    initApp();
 </script>
 </body>
 </html>
