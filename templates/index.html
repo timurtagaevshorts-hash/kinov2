@@ -49,6 +49,8 @@
             justify-content: center;
             overflow: hidden;
         }
+        
+        /* YouTube iframe to'liq ekran */
         .short-video iframe {
             width: 100%;
             height: 100%;
@@ -58,7 +60,7 @@
             left: 0;
             opacity: 0;
             transition: opacity 0.25s ease;
-            object-fit: cover;
+            pointer-events: auto;
         }
         .short-video iframe.active {
             opacity: 1;
@@ -67,15 +69,16 @@
         .short-video iframe.inactive {
             opacity: 0;
             z-index: 1;
+            pointer-events: none;
         }
 
         .short-info {
             position: absolute;
-            bottom: 90px;
+            bottom: 100px;
             left: 20px;
             right: 80px;
             z-index: 15;
-            background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%);
+            background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 100%);
             padding: 20px 14px 12px 14px;
             border-radius: 20px;
             pointer-events: none;
@@ -94,31 +97,49 @@
             text-shadow: 0 1px 2px rgba(0,0,0,0.4);
         }
 
-        .overlay-buttons {
+        /* YouTube like/comment/share tugmalari uchun overlay */
+        .youtube-buttons {
             position: absolute;
             right: 14px;
             bottom: 100px;
             z-index: 20;
             display: flex;
             flex-direction: column;
-            gap: 18px;
+            gap: 12px;
         }
-        .overlay-btn {
-            background: rgba(20,20,35,0.7);
+        .youtube-btn {
+            background: rgba(0,0,0,0.6);
             backdrop-filter: blur(12px);
-            width: 46px;
-            height: 46px;
+            width: 44px;
+            height: 44px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
-            font-size: 1.3rem;
+            font-size: 1.2rem;
             cursor: pointer;
-            transition: transform 0.2s cubic-bezier(0.2, 0.9, 0.4, 1.1), background 0.2s;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            transition: transform 0.2s, background 0.2s;
+            border: 0.5px solid rgba(255,255,255,0.2);
         }
-        .overlay-btn:active { transform: scale(0.92); }
+        .youtube-btn:active { transform: scale(0.92); }
+        .youtube-btn:hover { background: #ff0000; }
+
+        /* Sound toggle */
+        .sound-btn {
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(12px);
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.2rem;
+            cursor: pointer;
+            border: 0.5px solid rgba(255,255,255,0.2);
+        }
 
         .logo {
             position: fixed;
@@ -159,7 +180,6 @@
             border: 0.5px solid rgba(255,255,255,0.2);
         }
 
-        /* Telegram seriallar tugmasi */
         .telegram-series-btn {
             position: fixed;
             top: 18px;
@@ -183,7 +203,6 @@
         .telegram-series-btn:active { transform: scale(0.95); }
         .telegram-series-btn i { font-size: 1.2rem; }
 
-        /* DINAMIK TUGMA - admin panel orqali boshqariladi */
         .dynamic-action-btn {
             position: fixed;
             top: 76px;
@@ -202,10 +221,8 @@
             cursor: pointer;
             border: none;
             box-shadow: 0 4px 14px rgba(0,0,0,0.3);
-            transition: transform 0.2s ease;
         }
         .dynamic-action-btn:active { transform: scale(0.95); }
-        .dynamic-action-btn i { font-size: 1.1rem; }
 
         .code-btn {
             position: fixed;
@@ -239,6 +256,7 @@
         .code-btn-text h4 { color: white; font-size: 0.95rem; font-weight: 700; }
         .code-btn-text p { color: rgba(255,255,255,0.75); font-size: 0.7rem; }
 
+        /* Modal styles */
         .modal-overlay {
             position: fixed;
             top: 0;
@@ -413,6 +431,8 @@
             .numpad-btn { padding: 14px; font-size: 1.4rem; }
             .telegram-series-btn, .dynamic-action-btn { padding: 5px 12px; font-size: 0.7rem; }
             .dynamic-action-btn { top: 68px; }
+            .youtube-buttons { right: 10px; bottom: 80px; gap: 8px; }
+            .youtube-btn, .sound-btn { width: 38px; height: 38px; font-size: 1rem; }
         }
     </style>
 </head>
@@ -426,13 +446,11 @@
 <div class="logo"><span>🎬 KINOTOP</span></div>
 <a href="/admin" class="admin-btn">🔐</a>
 
-<!-- Seriallar tugmasi (Telegram) -->
 <div class="telegram-series-btn" id="telegramSeriesBtn">
     <i class="fab fa-telegram-plane"></i>
     <span>Seriallar</span>
 </div>
 
-<!-- Dinamik tugma - admin panel orqali boshqariladi -->
 <div class="dynamic-action-btn" id="dynamicActionBtn">
     <i class="fas fa-ticket-alt"></i>
     <span id="dynamicBtnText">Top Kino</span>
@@ -502,22 +520,58 @@
         return div.innerHTML;
     }
     
+    // YouTube video ID ni olish
+    function getYouTubeVideoId(url) {
+        if (!url) return null;
+        const patterns = [
+            /youtube\.com\/shorts\/([a-zA-Z0-9_-]+)/,
+            /youtube\.com\/watch\?v=([a-zA-Z0-9_-]+)/,
+            /youtu\.be\/([a-zA-Z0-9_-]+)/,
+            /youtube\.com\/embed\/([a-zA-Z0-9_-]+)/
+        ];
+        for (const pattern of patterns) {
+            const match = url.match(pattern);
+            if (match) return match[1];
+        }
+        return null;
+    }
+    
     function renderShorts() {
         shortsContainer.innerHTML = '';
         shorts.forEach((short, idx) => {
+            const videoId = getYouTubeVideoId(short.video_id || short.embed_url);
+            const embedUrl = videoId ? `https://www.youtube.com/embed/${videoId}?autoplay=0&controls=1&rel=0&modestbranding=1&showinfo=1&enablejsapi=1` : short.embed_url;
+            
             const div = document.createElement('div');
             div.className = 'short-video';
             div.setAttribute('data-id', short.id);
             div.setAttribute('data-index', idx);
+            div.setAttribute('data-video-id', videoId || '');
             div.innerHTML = `
-                <iframe data-src="${short.embed_url}" src="about:blank" allow="autoplay; encrypted-media; fullscreen" allowfullscreen></iframe>
+                <iframe 
+                    data-src="${embedUrl}" 
+                    src="about:blank" 
+                    allow="autoplay; encrypted-media; fullscreen" 
+                    allowfullscreen>
+                </iframe>
                 <div class="short-info">
                     <div class="short-title">${escapeHtml(short.sarlavha)}</div>
                     <div class="short-desc">${escapeHtml(short.tafsilot || '⚡ Trending short')}</div>
                 </div>
-                <div class="overlay-buttons">
-                    <div class="overlay-btn sound-btn" data-id="${short.id}">🔇</div>
-                    <div class="overlay-btn share-btn"><i class="fa-regular fa-share-from-square"></i></div>
+                <div class="youtube-buttons">
+                    <div class="sound-btn" data-id="${short.id}">🔇</div>
+                    ${videoId ? `
+                        <div class="youtube-btn like-youtube" data-video-id="${videoId}">
+                            <i class="fab fa-youtube"></i> 👍
+                        </div>
+                        <div class="youtube-btn open-youtube" data-video-id="${videoId}">
+                            <i class="fab fa-youtube"></i> 💬
+                        </div>
+                    ` : `
+                        <div class="youtube-btn share-btn">
+                            <i class="fa-regular fa-share-from-square"></i>
+                        </div>
+                    `}
                 </div>
             `;
             shortsContainer.appendChild(div);
@@ -552,8 +606,12 @@
         if (!iframe) { isVideoLoading = false; return; }
     
         let src = iframe.dataset.src;
-        if (!src.includes("autoplay=1")) src += (src.includes("?") ? "&" : "?") + "autoplay=1";
-        if (!src.includes("mute=0")) src += "&mute=0";
+        if (!src.includes("autoplay=1")) {
+            src += (src.includes("?") ? "&" : "?") + "autoplay=1";
+        }
+        if (!src.includes("mute=0")) {
+            src += "&mute=0";
+        }
         
         document.querySelectorAll('.sound-btn').forEach(btn => { btn.innerHTML = '🔇'; });
         const soundBtn = video.querySelector('.sound-btn');
@@ -586,6 +644,13 @@
         }
     }
     
+    // YouTube like sahifasiga o'tish
+    function openYouTubeVideo(videoId) {
+        if (videoId) {
+            window.open(`https://www.youtube.com/watch?v=${videoId}`, '_blank');
+        }
+    }
+    
     function shareToTelegram(videoTitle) {
         const botUsername = "Kodlikino_topbot";
         const message = `🎬 KinoTop🤩 t.me/${botUsername} da eng sara filmlarni tomosha qiling! 🔥 ${videoTitle}`;
@@ -596,29 +661,24 @@
         window.open('https://t.me/Kodlikino_topbot', '_blank');
     }
     
-    // Dinamik tugmani sozlash (admin panel orqali)
     function initDynamicButton() {
         const dynamicBtn = document.getElementById('dynamicActionBtn');
         const btnTextSpan = document.getElementById('dynamicBtnText');
         
-        // Serverdan tugma sozlamalarini olish
         fetch('/api/action-button')
             .then(res => res.json())
             .then(data => {
                 if (data && data.enabled === true) {
                     btnTextSpan.innerText = data.text || "Top Kino";
                     dynamicBtn.style.display = 'flex';
-                    const url = data.url || "https://t.me/Kodlikino_topbot";
-                    dynamicBtn.onclick = () => { window.open(url, '_blank'); };
+                    dynamicBtn.onclick = () => { window.open(data.url || "https://t.me/Kodlikino_topbot", '_blank'); };
                 } else {
-                    // default: tugma ko'rinsin va vaqtinchalik "Top Kino" bilan ishlasin
                     btnTextSpan.innerText = "Top Kino";
                     dynamicBtn.style.display = 'flex';
                     dynamicBtn.onclick = () => { window.open('https://t.me/Kodlikino_topbot', '_blank'); };
                 }
             })
             .catch(() => {
-                // fallback: tugmani default holatda ko'rsatish
                 btnTextSpan.innerText = "Top Kino";
                 dynamicBtn.style.display = 'flex';
                 dynamicBtn.onclick = () => { window.open('https://t.me/Kodlikino_topbot', '_blank'); };
@@ -630,6 +690,26 @@
             const newBtn = btn.cloneNode(true);
             btn.parentNode.replaceChild(newBtn, btn);
             newBtn.addEventListener('click', (e) => { e.stopPropagation(); toggleSound(newBtn); });
+        });
+        
+        document.querySelectorAll('.like-youtube').forEach(btn => {
+            const newBtn = btn.cloneNode(true);
+            btn.parentNode.replaceChild(newBtn, btn);
+            newBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const videoId = newBtn.getAttribute('data-video-id');
+                openYouTubeVideo(videoId);
+            });
+        });
+        
+        document.querySelectorAll('.open-youtube').forEach(btn => {
+            const newBtn = btn.cloneNode(true);
+            btn.parentNode.replaceChild(newBtn, btn);
+            newBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const videoId = newBtn.getAttribute('data-video-id');
+                openYouTubeVideo(videoId);
+            });
         });
         
         document.querySelectorAll('.share-btn').forEach(btn => {
@@ -646,7 +726,7 @@
     }
     
     function initFirstVideo() {
-        if (allVideos.length > 0) setTimeout(() => playVideoAt(0), 50);
+        if (allVideos.length > 0) setTimeout(() => playVideoAt(0), 100);
     }
     
     function getCurrentVisibleIndex() {
@@ -663,7 +743,7 @@
             if (newIndex !== currentIndex && newIndex >= 0 && newIndex < allVideos.length) {
                 playVideoAt(newIndex);
             }
-        }, 70);
+        }, 100);
     }
     
     // KOD MODAL
@@ -739,7 +819,7 @@
                 touchTimer = setTimeout(() => {
                     const newIndex = getCurrentVisibleIndex();
                     if (newIndex !== currentIndex) playVideoAt(newIndex);
-                }, 70);
+                }, 80);
             }
         });
         shortsContainer.addEventListener('touchmove', (e) => { touchEndY = e.touches[0].clientY; });
@@ -750,7 +830,7 @@
         }, 2500);
         
         initFirstVideo();
-        initDynamicButton(); // Dinamik tugmani yuklash
+        initDynamicButton();
     }
     
     initApp();
